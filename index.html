@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ProvedCat - 고양이 사료량 설계</title>
+    <title>ProvedCat - 고양이 영양 설계</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root { --brand-main: #2d7dd2; --dry-food: #f4a44a; --wet-food: #4a9af4; }
         body { font-size: 16px; background-color: #f3f4f6; word-break: keep-all; font-family: -apple-system, sans-serif; }
         input, button, select { outline: none !important; border: none !important; }
-        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-        .accordion-content.open { max-height: 1000px; }
         input[type=range] { -webkit-appearance: none; background: #e5e7eb; height: 8px; border-radius: 4px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: var(--brand-main); border-radius: 50%; cursor: pointer; border: 4px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     </style>
@@ -75,48 +73,48 @@
                 </div>
 
                 <div class="space-y-4">
-    <div class="flex justify-between items-center px-2">
-        <span class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</span>
-        <label class="flex items-center gap-2 cursor-pointer group">
-            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()" class="hidden peer">
-            <div class="w-5 h-5 bg-gray-200 rounded-md peer-checked:bg-[#f4a44a] transition-all flex items-center justify-center">
-                <svg class="w-3 h-3 text-white hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-            </div>
-            <span class="text-[10px] font-extrabold text-gray-400 group-hover:text-gray-600 transition-colors">건사료 교체 중</span>
-        </label>
-    </div>
-    
-    <div class="space-y-2">
-        <div class="relative rounded-2xl bg-orange-50 overflow-hidden border border-transparent focus-within:border-orange-200 transition-all">
-            <div class="flex items-center">
-                <input type="text" id="dryInput1" oninput="searchFeed('dry', this.value, 'dryRes1')" placeholder="건사료 검색" class="w-full p-5 bg-transparent font-bold placeholder:text-orange-200">
-                <div class="flex items-center bg-orange-100 px-4 h-[64px]">
-                    <input type="number" id="dryPct1" value="100" class="w-10 bg-transparent text-center font-black text-orange-600">
-                    <span class="text-[10px] font-black text-orange-400">%</span>
-                </div>
-            </div>
-            <div id="dryRes1" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
-        </div>
+                    <div class="flex justify-between items-center px-2">
+                        <span class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</span>
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()" class="hidden peer">
+                            <div class="w-5 h-5 bg-gray-200 rounded-md peer-checked:bg-[#f4a44a] transition-all flex items-center justify-center">
+                                <svg class="w-3 h-3 text-white hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <span class="text-[10px] font-extrabold text-gray-400 group-hover:text-gray-600 transition-colors">건사료 교체 중</span>
+                        </label>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <div class="relative rounded-2xl bg-orange-50 overflow-hidden border border-transparent focus-within:border-orange-200 transition-all">
+                            <div class="flex items-center">
+                                <input type="text" id="dryInput1" oninput="searchFeed('dry', this.value, 'dryRes1')" placeholder="건사료 검색" class="w-full p-5 bg-transparent font-bold placeholder:text-orange-200">
+                                <div class="flex items-center bg-orange-100 px-4 h-[64px]">
+                                    <input type="number" id="dryPct1" value="100" class="w-10 bg-transparent text-center font-black text-orange-600">
+                                    <span class="text-[10px] font-black text-orange-400">%</span>
+                                </div>
+                            </div>
+                            <div id="dryRes1" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
+                        </div>
 
-        <div id="dryArea2" class="hidden relative rounded-2xl bg-orange-50 overflow-hidden border-2 border-dashed border-orange-200 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div class="flex items-center">
-                <input type="text" id="dryInput2" oninput="searchFeed('dry', this.value, 'dryRes2')" placeholder="교체할 새 건사료" class="w-full p-5 bg-transparent font-bold placeholder:text-orange-300">
-                <div class="flex items-center bg-orange-200 px-4 h-[64px]">
-                    <input type="number" id="dryPct2" value="0" class="w-10 bg-transparent text-center font-black text-orange-700">
-                    <span class="text-[10px] font-black text-orange-500">%</span>
+                        <div id="dryArea2" class="hidden relative rounded-2xl bg-orange-50 overflow-hidden border-2 border-dashed border-orange-200">
+                            <div class="flex items-center">
+                                <input type="text" id="dryInput2" oninput="searchFeed('dry', this.value, 'dryRes2')" placeholder="교체할 새 건사료" class="w-full p-5 bg-transparent font-bold placeholder:text-orange-300">
+                                <div class="flex items-center bg-orange-200 px-4 h-[64px]">
+                                    <input type="number" id="dryPct2" value="0" class="w-10 bg-transparent text-center font-black text-orange-700">
+                                    <span class="text-[10px] font-black text-orange-500">%</span>
+                                </div>
+                            </div>
+                            <div id="dryRes2" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div id="dryRes2" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
-        </div>
-    </div>
-</div>
 
                 <div class="space-y-4">
                     <div class="px-2 font-black text-[#4a9af4] text-xs italic">WET FOOD</div>
                     <div class="space-y-2">
                         <div class="relative rounded-2xl bg-blue-50 overflow-hidden">
                             <div class="flex items-center">
-                                <input type="text" id="wetInput1" oninput="searchFeed('wet', this.value, 'wetRes1')" placeholder="습식사료 1" class="w-full p-5 bg-transparent font-bold">
+                                <input type="text" id="wetInput1" oninput="searchFeed('wet', this.value, 'wetRes1')" placeholder="습식사료 1" class="w-full p-5 bg-transparent font-bold placeholder:text-blue-200">
                                 <div class="flex items-center bg-blue-100 px-4 h-[64px]">
                                     <input type="number" id="wetPct1" value="100" class="w-10 bg-transparent text-center font-black text-blue-600">
                                     <span class="text-[10px] font-black text-blue-400">%</span>
@@ -126,23 +124,13 @@
                         </div>
                         <div class="relative rounded-2xl bg-blue-50/40 overflow-hidden border border-dashed border-blue-50">
                             <div class="flex items-center">
-                                <input type="text" id="wetInput2" oninput="searchFeed('wet', this.value, 'wetRes2')" placeholder="습식사료 2 (선택)" class="w-full p-5 bg-transparent font-bold">
+                                <input type="text" id="wetInput2" oninput="searchFeed('wet', this.value, 'wetRes2')" placeholder="습식사료 2 (선택)" class="w-full p-5 bg-transparent font-bold placeholder:text-blue-200">
                                 <div class="flex items-center bg-blue-50/60 px-4 h-[64px]">
                                     <input type="number" id="wetPct2" value="0" class="w-10 bg-transparent text-center font-black text-blue-300">
                                     <span class="text-[10px] font-black text-blue-200">%</span>
                                 </div>
                             </div>
                             <div id="wetRes2" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
-                        </div>
-                        <div class="relative rounded-2xl bg-blue-50/40 overflow-hidden border border-dashed border-blue-50">
-                            <div class="flex items-center">
-                                <input type="text" id="wetInput3" oninput="searchFeed('wet', this.value, 'wetRes3')" placeholder="습식사료 3 (선택)" class="w-full p-5 bg-transparent font-bold">
-                                <div class="flex items-center bg-blue-50/60 px-4 h-[64px]">
-                                    <input type="number" id="wetPct3" value="0" class="w-10 bg-transparent text-center font-black text-blue-300">
-                                    <span class="text-[10px] font-black text-blue-200">%</span>
-                                </div>
-                            </div>
-                            <div id="wetRes3" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
                         </div>
                     </div>
                 </div>
@@ -159,81 +147,80 @@
                         <p class="text-4xl font-black italic" id="resDER">0 <span class="text-lg">kcal</span></p>
                         <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Daily Energy Requirement</p>
                     </div>
-                    <div id="resDetails" class="space-y-3">
-                        </div>
+                    <div id="resDetails" class="space-y-3"></div>
                 </div>
             </div>
-</main>
-</div>
-
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+        </main>
+    </div>
 
 <script>
-    // 1. Supabase 설정
+// 1. Supabase 접속 정보
 const SUPABASE_URL = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2x2dGduaHJkbXp4emxzdHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NjE1MjIsImV4cCI6MjA5MTUzNzUyMn0.6nI4uEp9H9gVn3Sjm4Qhs5XXFvhUhfGBf6e0Nqce1EM';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let selectedFeeds = { dry: [null, null], wet: [null, null, null] };
 
-// 2. 사료 검색 함수 (영어 컬럼명 적용)
-async function searchFeed(type, query, resId) {
-    if (query.length < 1) { // 한 글자만 써도 나오게 변경
-        document.getElementById(resId).innerHTML = '';
-        return;
-    }
+// 페이지 열리자마자 DB 연결 상태 체크 (콘솔용)
+(async function checkDB() {
+    const { data, error } = await _supabase.from('feeds').select('*').limit(1);
+    console.log("🔥 시스템 부팅 완료! DB 연결 상태:", error ? "에러 발생 (" + error.message + ")" : "정상 통신 중");
+})();
 
-    // [중요] 컬럼명을 brand, product_name으로 변경
-    const { data, error } = await _supabase
-        .from('feeds')
-        .select('brand, product_name, final_me')
-        .eq('type', type)
-        .or(`product_name.ilike.%${query}%,brand.ilike.%${query}%`)
-        .limit(5);
-
-    if (error) {
-        console.error("Supabase 상세 에러:", error.message, error.details);
-        return;
-    }
-
-    console.log("가져온 데이터:", data); // 데이터 확인용
-
-    const container = document.getElementById(resId);
-    
-    if (data.length === 0) {
-        container.innerHTML = '<div class="p-4 text-xs text-gray-400">검색 결과가 없습니다.</div>';
-        return;
-    }
-
-    container.innerHTML = data.map(f => {
-        // 작은따옴표(') 문제를 방지하기 위해 템플릿 리터럴 안에서 문자열을 처리합니다.
-        const brand = f.brand.replace(/'/g, "\\'");
-        const name = f.product_name.replace(/'/g, "\\'");
-        
-        return `
-            <div onclick="selectFeed('${type}', '${resId}', '${brand}', '${name}', ${f.final_me})" 
-                 class="p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer text-sm text-gray-800">
-                <b class="text-[#2d7dd2]">${f.brand}</b> | ${f.product_name}
-                <div class="text-[10px] text-gray-400">${f.final_me} kcal/kg</div>
-            </div>
-        `;
-    }).join('');
-
-// 3. 사료 선택 함수
-function selectFeed(type, resId, brand, name, kcal) {
-    const idx = parseInt(resId.match(/\d+/)[0]) - 1;
-    const inputId = type === 'dry' ? `dryInput${idx + 1}` : `wetInput${idx + 1}`;
-    
-    document.getElementById(inputId).value = `${brand} | ${name}`;
-    document.getElementById(resId).innerHTML = '';
-    
-    // 객체에 저장
-    selectedFeeds[type][idx] = { name: name, kcal: kcal };
-    console.log("선택된 사료:", selectedFeeds);
+// 2. 메인 비율 업데이트
+function updateMainRatio(v) {
+    document.getElementById('dryTotalText').innerText = 100 - v;
+    document.getElementById('wetTotalText').innerText = v;
 }
 
-// 나머지 updateMainRatio, toggleDrySwitching, calculate 함수는 기존 유지
-</script>
+// 3. 건사료 교체 토글
+function toggleDrySwitching() {
+    const checkbox = document.getElementById('drySwitching');
+    const area2 = document.getElementById('dryArea2');
+    if (checkbox.checked) {
+        area2.classList.remove('hidden');
+        document.getElementById('dryPct1').value = 70;
+        document.getElementById('dryPct2').value = 30;
+    } else {
+        area2.classList.add('hidden');
+        document.getElementById('dryPct1').value = 100;
+        document.getElementById('dryPct2').value = 0;
+        selectedFeeds.dry[1] = null;
+        document.getElementById('dryInput2').value = '';
+    }
+}
 
-</body>
-</html>
+// 4. [무적 버전] 사료 검색 함수
+async function searchFeed(type, query, resId) {
+    const container = document.getElementById(resId);
+    
+    // 검색어가 없으면 드롭다운 닫기
+    if (!query || query.trim() === '') {
+        container.innerHTML = '';
+        return;
+    }
+
+    // 1단계: 안전하게 해당 타입(dry/wet)의 모든 데이터를 그냥 다 가져옵니다. (에러 방지 핵심)
+    const { data, error } = await _supabase
+        .from('feeds')
+        .select('*') // 컬럼을 지정하지 않아 한글/영어 스키마 충돌 방지
+        .eq('type', type);
+
+    // DB 에러가 났을 경우 화면에 바로 보여줍니다.
+    if (error) {
+        container.innerHTML = `<div class="p-4 text-red-500 text-xs font-bold">DB 에러: ${error.message} <br> 권한(RLS) 문제이거나 테이블이 없습니다.</div>`;
+        return;
+    }
+
+    // DB에 해당 타입의 사료 자체가 없는 경우
+    if (!data || data.length === 0) {
+        container.innerHTML = `<div class="p-4 text-orange-400 text-xs">DB에 ${type} 사료 데이터가 하나도 없습니다. 데이터를 추가해주세요.</div>`;
+        return;
+    }
+
+    // 2단계: 자바스크립트가 직접 검색어를 필터링합니다. (문법 오류 100% 차단)
+    const filteredData = data.filter(f => {
+        // 영어 컬럼(brand)이 있으면 그걸 쓰고, 없으면 한글(제조사)을 씁니다.
+        const brand = String(f.brand || f.제조사 || '').toLowerCase();
+        const name = String(f.product_name || f.제품명 || '').toLowerCase();
+        const searchWord
