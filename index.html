@@ -215,7 +215,10 @@
             console.error("검색 중 에러 발생:", error);
             return;
         }
-
+    
+    console.log("가져온 데이터:", data); // 데이터가 오는지 콘솔에서 확인용
+    // ... 나머지 코드
+}
         const container = document.getElementById(resId);
         container.innerHTML = data.map(f => `
             <div onclick="selectFeed('${type}', '${resId}', '${f.제조사}', '${f.제품명}', ${f.final_me})" 
