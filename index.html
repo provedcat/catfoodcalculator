@@ -174,7 +174,7 @@
             const { data, error } = await _supabase.from('feeds').select('*').eq('type', type);
 
             if (error) {
-                container.innerHTML = '<div class="p-4 text-red-500 text-xs">DB 에러: ' + error.message + '</div>';
+                container.innerHTML = `<div class="p-4 text-red-500 text-xs">DB 에러: ${error.message}</div>`;
                 return;
             }
 
@@ -184,7 +184,7 @@
             }
 
             const searchWord = query.toLowerCase();
-            const filteredData = data.filter(function(f) {
+            const filteredData = data.filter(f => {
                 const brand = String(f.brand || f.제조사 || '').toLowerCase();
                 const name = String(f.product_name || f.제품명 || '').toLowerCase();
                 return brand.includes(searchWord) || name.includes(searchWord);
@@ -196,17 +196,21 @@
             }
 
             let html = '';
-            for (let i = 0; i < filteredData.length; i++) {
-                if (i >= 5) break;
+            for (let i = 0; i < Math.min(filteredData.length, 5); i++) {
                 const f = filteredData[i];
                 const brand = f.brand || f.제조사 || '제조사불명';
                 const name = f.product_name || f.제품명 || '제품명불명';
                 const kcal = f.final_me || 0;
                 
-                const safeBrand = brand.replace(/'/g, "\\'");
-                const safeName = name.replace(/'/g, "\\'");
+                // 에러 방지를 위해 따옴표 완벽 제거
+                const safeBrand = brand.replace(/['"]/g, '');
+                const safeName = name.replace(/['"]/g, '');
 
-                html += '<div onclick="selectFeed(\\'' + type + '\\', \\'' + resId + '\\', \\'' + safeBrand + '\\', \\'' + safeName + '\\', ' + kcal + ')" class="p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer text-sm"><b class="text-[#2d7dd2]">' + brand + '</b> | ' + name + '<div class="text-[10px] text-gray-400 mt-1">' + kcal + ' kcal/kg</div></div>';
+                html += `
+                <div onclick="selectFeed('${type}', '${resId}', '${safeBrand}', '${safeName}', ${kcal})" class="p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer text-sm">
+                    <b class="text-[#2d7dd2]">${brand}</b> | ${name}
+                    <div class="text-[10px] text-gray-400 mt-1">${kcal} kcal/kg</div>
+                </div>`;
             }
             container.innerHTML = html;
         }
@@ -249,7 +253,7 @@
                 if (f) {
                     const subRatio = parseInt(document.getElementById('dryPct' + (i+1)).value) / 100;
                     const grams = (DER * dryTotalRatio * subRatio / f.kcal) * 1000;
-                    detailsHtml += '<div class="flex justify-between items-center bg-gray-800 p-5 rounded-2xl mb-2"><span class="text-orange-400 font-bold text-sm">' + f.name + '</span><span class="font-black text-white text-xl">' + Math.round(grams) + 'g</span></div>';
+                    detailsHtml += `<div class="flex justify-between items-center bg-gray-800 p-5 rounded-2xl mb-2"><span class="text-orange-400 font-bold text-sm">${f.name}</span><span class="font-black text-white text-xl">${Math.round(grams)}g</span></div>`;
                 }
             }
             
@@ -258,7 +262,7 @@
                 if (f) {
                     const subRatio = parseInt(document.getElementById('wetPct' + (i+1)).value) / 100;
                     const grams = (DER * wetTotalRatio * subRatio / f.kcal) * 1000;
-                    detailsHtml += '<div class="flex justify-between items-center bg-gray-800 p-5 rounded-2xl mb-2"><span class="text-blue-400 font-bold text-sm">' + f.name + '</span><span class="font-black text-white text-xl">' + Math.round(grams) + 'g</span></div>';
+                    detailsHtml += `<div class="flex justify-between items-center bg-gray-800 p-5 rounded-2xl mb-2"><span class="text-blue-400 font-bold text-sm">${f.name}</span><span class="font-black text-white text-xl">${Math.round(grams)}g</span></div>`;
                 }
             }
 
