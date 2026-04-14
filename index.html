@@ -205,11 +205,11 @@
 
         const { data, error } = await _supabase
             .from('feeds')
-            .select('제조사, 제품명, final_me')
+            .select('*') //제조사, 제품명, final_me
             .eq('type', type)
-            .eq('verified', true)
+            // .eq('verified', true)
             .or(`제품명.ilike.%${query}%,제조사.ilike.%${query}%`)
-            .limit(5);
+            .limit(10);
 
         if (error) {
             console.error("검색 중 에러 발생:", error);
