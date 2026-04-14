@@ -164,32 +164,7 @@
                 </div>
             </div>
 </main>
-    </div> <script>
-        // 1. Supabase 설정
-        const SUPABASE_URL = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // 본인의 키 전체 입력
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // 2. 사료 정보 저장 객체
-        let selectedFeeds = { dry: [null, null], wet: [null, null, null] };
-
-        // 3. 기능 함수들 (건사료 교체 토글, 검색, 계산 등)
-        function toggleDrySwitching() {
-            const checkbox = document.getElementById('drySwitching');
-            const area2 = document.getElementById('dryArea2');
-            if (checkbox.checked) {
-                area2.classList.remove('hidden');
-                document.getElementById('dryPct1').value = 70;
-                document.getElementById('dryPct2').value = 30;
-            } else {
-                area2.classList.add('hidden');
-                document.getElementById('dryPct1').value = 100;
-                document.getElementById('dryPct2').value = 0;
-            }
-        }
-
-        // ... 나머지 searchFeed, calculate 함수들 ...
-        
-    </script>
-
-</body> </html>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script> 
+</body>
+</html>
