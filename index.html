@@ -199,14 +199,25 @@ async function searchFeed(type, query, resId) {
     console.log("가져온 데이터:", data); // 데이터 확인용
 
     const container = document.getElementById(resId);
-    container.innerHTML = data.map(f => `
-        <div onclick="selectFeed('${type}', '${resId}', '${f.brand}', '${f.product_name}', ${f.final_me})" 
-             class="p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer text-sm text-gray-800">
-            <b class="text-[#2d7dd2]">${f.brand}</b> | ${f.product_name}
-            <div class="text-[10px] text-gray-400">${f.final_me} kcal/kg</div>
-        </div>
-    `).join('');
-}
+    
+    if (data.length === 0) {
+        container.innerHTML = '<div class="p-4 text-xs text-gray-400">검색 결과가 없습니다.</div>';
+        return;
+    }
+
+    container.innerHTML = data.map(f => {
+        // 작은따옴표(') 문제를 방지하기 위해 템플릿 리터럴 안에서 문자열을 처리합니다.
+        const brand = f.brand.replace(/'/g, "\\'");
+        const name = f.product_name.replace(/'/g, "\\'");
+        
+        return `
+            <div onclick="selectFeed('${type}', '${resId}', '${brand}', '${name}', ${f.final_me})" 
+                 class="p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer text-sm text-gray-800">
+                <b class="text-[#2d7dd2]">${f.brand}</b> | ${f.product_name}
+                <div class="text-[10px] text-gray-400">${f.final_me} kcal/kg</div>
+            </div>
+        `;
+    }).join('');
 
 // 3. 사료 선택 함수
 function selectFeed(type, resId, brand, name, kcal) {
