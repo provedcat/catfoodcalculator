@@ -1,873 +1,195 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🐱고양이 사료 급여량 계산기</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-      background: #f5f5f5; color: #333; -webkit-text-size-adjust: 100%;
-    }
-    .container { max-width: 640px; margin: 0 auto; padding: 16px; }
-    h1 { text-align: center; margin-bottom: 20px; font-size: 22px; }
-
-    .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .card h2 { font-size: 15px; margin-bottom: 14px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-
-    .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-    .form-group { flex: 1; min-width: 140px; }
-    label { font-size: 13px; color: #777; display: block; margin-bottom: 4px; }
-
-    input, select {
-      width: 100%; padding: 12px; border: 1px solid #ddd;
-      border-radius: 8px; font-size: 16px; background: white; color: #333;
-    }
-    select {
-      -webkit-appearance: none; appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
-    }
-    input[type=number] { -moz-appearance: textfield; }
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
-    input[type=range] { width: 100%; margin: 6px 0; accent-color: #2d7dd2; height: 22px; }
-
-    /* 자동완성 */
-    .autocomplete-wrap { position: relative; flex: 1; min-width: 0; }
-    .autocomplete-input {
-      width: 100%; padding: 12px; border: 1px solid #ddd;
-      border-radius: 8px; font-size: 16px; background: white; color: #333;
-    }
-    .autocomplete-input:focus { outline: none; border-color: #2d7dd2; }
-    .autocomplete-list {
-      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-      background: white; border: 1px solid #ddd; border-radius: 8px;
-      max-height: 220px; overflow-y: auto; z-index: 1000;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.12); display: none;
-    }
-    .autocomplete-list.show { display: block; }
-    .autocomplete-item {
-      padding: 12px 14px; font-size: 14px; cursor: pointer;
-      border-bottom: 1px solid #f5f5f5; line-height: 1.4;
-    }
-    .autocomplete-item:last-child { border-bottom: none; }
-    .autocomplete-item:hover, .autocomplete-item.active { background: #f0f7ff; }
-    .autocomplete-item .item-brand { font-size: 11px; color: #aaa; display: block; }
-    .autocomplete-item mark { background: #fff3b0; color: #333; border-radius: 2px; padding: 0 1px; }
-    .autocomplete-clear {
-      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-      background: none; border: none; color: #bbb; cursor: pointer;
-      font-size: 16px; padding: 4px; display: none;
-    }
-
-    /* 칼로리 */
-    .calorie-box { background: #f0f7ff; border-radius: 10px; padding: 16px; text-align: center; }
-    .calorie-main { font-size: 32px; font-weight: bold; color: #2d7dd2; }
-    .calorie-sub { font-size: 13px; color: #888; margin-top: 4px; line-height: 1.6; }
-
-    /* 비율 */
-    .ratio-bar { display: flex; height: 42px; border-radius: 8px; overflow: hidden; margin: 12px 0; }
-    .ratio-dry {
-      background: #f4a44a; display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 13px; font-weight: bold;
-      transition: width 0.1s; min-width: 0; overflow: hidden; white-space: nowrap;
-    }
-    .ratio-wet {
-      background: #4a9af4; display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 13px; font-weight: bold;
-      transition: width 0.1s; min-width: 0; overflow: hidden; white-space: nowrap;
-    }
-
-    /* 사료 행 */
-    .feed-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-    .feed-ratio-input { width: 68px; flex-shrink: 0; text-align: center; padding: 12px 6px; }
-    .dry-label { font-size: 12px; color: #aaa; min-width: 40px; flex-shrink: 0; }
-    .add-feed-btn {
-      background: none; border: 1px dashed #aaa; border-radius: 8px;
-      padding: 12px; color: #888; cursor: pointer; width: 100%; font-size: 14px; margin-top: 4px;
-    }
-    .remove-btn {
-      background: none; border: none; color: #ccc; cursor: pointer;
-      font-size: 22px; padding: 4px; flex-shrink: 0; min-width: 32px; text-align: center;
-    }
-    .checkbox-row {
-      display: flex; align-items: center; gap: 8px;
-      margin-bottom: 10px; font-size: 14px; color: #555; cursor: pointer;
-    }
-    .checkbox-row input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; }
-
-    /* 버튼 */
-    .calc-btn {
-      width: 100%; padding: 16px; background: #2d7dd2; color: white;
-      border: none; border-radius: 10px; font-size: 17px; font-weight: bold;
-      cursor: pointer; margin-top: 8px; -webkit-tap-highlight-color: transparent;
-    }
-    .calc-btn:disabled { background: #bbb; cursor: not-allowed; }
-    .calc-btn:active:not(:disabled) { opacity: 0.85; }
-    .cap-btn {
-      width: 100%; padding: 16px; background: #5a9e6f; color: white;
-      border: none; border-radius: 10px; font-size: 17px; font-weight: bold;
-      cursor: pointer; margin-top: 8px; -webkit-tap-highlight-color: transparent;
-    }
-    .cap-btn:disabled { background: #bbb; cursor: not-allowed; }
-    .cap-btn:active:not(:disabled) { opacity: 0.85; }
-
-    /* 급여량 결과 */
-    .result-item {
-      border-left: 4px solid #2d7dd2; padding: 12px 14px;
-      margin-bottom: 10px; background: #fafafa; border-radius: 0 8px 8px 0;
-    }
-    .result-item.wet { border-color: #4a9af4; }
-    .result-tag {
-      font-size: 11px; background: #e8f1fb; color: #2d7dd2;
-      border-radius: 4px; padding: 2px 6px; margin-bottom: 6px; display: inline-block;
-    }
-    .result-tag.wet { background: #e8f3ff; color: #4a9af4; }
-    .result-name { font-size: 15px; font-weight: bold; margin-bottom: 4px; word-break: keep-all; }
-    .result-amount { font-size: 28px; font-weight: bold; color: #222; }
-    .result-kcal { font-size: 13px; color: #999; }
-
-    /* 칼슘/인 분석 결과 */
-    .cap-summary { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-    .cap-box {
-      flex: 1; min-width: 130px; background: #f8f8f8;
-      border-radius: 10px; padding: 14px; text-align: center;
-    }
-    .cap-box .cap-label { font-size: 12px; color: #888; margin-bottom: 6px; }
-    .cap-box .cap-value { font-size: 24px; font-weight: bold; color: #222; }
-    .cap-box .cap-unit  { font-size: 11px; color: #aaa; margin-bottom: 6px; }
-    .cap-box .cap-ref   { font-size: 12px; line-height: 1.5; }
-    .cap-ratio-box {
-      background: #f0f7ff; border-radius: 10px; padding: 16px;
-      text-align: center; margin-bottom: 14px;
-    }
-    .cap-ratio-value { font-size: 30px; font-weight: bold; }
-    .cap-ratio-label { font-size: 13px; color: #888; margin-top: 6px; }
-    .status-good { color: #2a7a2a; }
-    .status-low  { color: #c07000; }
-    .status-high { color: #c05000; }
-    .status-over { color: #d33; }
-    .status-none { color: #aaa; }
-    .cap-feed-item {
-      border-left: 3px solid #ddd; padding: 10px 14px;
-      margin-bottom: 8px; background: #fafafa; border-radius: 0 8px 8px 0; font-size: 14px;
-    }
-    .cap-feed-item.dry { border-color: #f4a44a; }
-    .cap-feed-item.wet { border-color: #4a9af4; }
-    .cap-feed-name { font-weight: bold; margin-bottom: 4px; word-break: keep-all; }
-    .cap-feed-values { color: #666; font-size: 13px; }
-    .cap-section-title { font-size: 13px; color: #555; font-weight: bold; margin-bottom: 8px; }
-    .cap-warn {
-      font-size: 12px; color: #999; margin-top: 12px;
-      padding: 10px 12px; background: #f8f8f8; border-radius: 8px; line-height: 1.7;
-    }
-
-    /* 업로드 */
-    .upload-area {
-      border: 2px dashed #ddd; border-radius: 10px; padding: 22px 16px;
-      text-align: center; cursor: pointer; color: #aaa; margin-top: 8px; line-height: 1.7;
-    }
-    .upload-area:active { border-color: #2d7dd2; color: #2d7dd2; }
-    .upload-type-btns { display: flex; gap: 8px; margin-bottom: 12px; }
-    .upload-type-btn {
-      flex: 1; padding: 12px 8px; border: 1px solid #ddd; border-radius: 8px;
-      background: white; cursor: pointer; font-size: 14px;
-    }
-    .upload-type-btn.active { border-color: #2d7dd2; background: #e8f1fb; color: #2d7dd2; font-weight: bold; }
-    .msg { padding: 12px 14px; border-radius: 8px; font-size: 14px; margin-top: 8px; line-height: 1.5; word-break: keep-all; }
-    .msg.error   { background: #fff0f0; color: #d33; }
-    .msg.success { background: #f0fff4; color: #2a7a2a; }
-    .msg.loading { background: #f0f7ff; color: #2d7dd2; }
-
-    @media (max-width: 480px) {
-      .container { padding: 12px; }
-      h1 { font-size: 19px; }
-      .card { padding: 14px 12px; }
-      .form-group { min-width: 100%; }
-      .calorie-main { font-size: 26px; }
-      .result-amount { font-size: 24px; }
-      .cap-ratio-value { font-size: 26px; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ProvedCat - 고양이 영양 설계</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --brand-main: #2d7dd2; --dry-food: #f4a44a; --wet-food: #4a9af4; }
+        body { font-size: 16px; background-color: #f3f4f6; word-break: keep-all; font-family: -apple-system, sans-serif; }
+        input, button, select { outline: none !important; border: none !important; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .accordion-content.open { max-height: 1000px; }
+        input[type=range] { -webkit-appearance: none; background: #e5e7eb; height: 8px; border-radius: 4px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: var(--brand-main); border-radius: 50%; cursor: pointer; border: 4px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
 </head>
-<body>
-<div class="container">
-  <h1>🐱사료 급여량 계산기🐱</h1>
+<body class="flex justify-center">
+    <div class="w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
+        
+        <header class="p-6 pt-10 flex justify-between items-center bg-white">
+            <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
+            <button class="px-4 py-2 bg-gray-50 text-gray-400 rounded-full text-xs font-bold">LOGIN</button>
+        </header>
 
-  <!-- 1. 고양이 정보 -->
-  <div class="card">
-    <h2>고양이 정보</h2>
-    <div class="form-row">
-      <div class="form-group">
-        <label>이름</label>
-        <input type="text" id="catName" placeholder="예: 나비">
-      </div>
-      <div class="form-group">
-        <label>생년월일</label>
-        <input type="date" id="catBirth">
-      </div>
+        <main class="p-6 pb-20 space-y-10">
+            <div class="space-y-6">
+                <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
+                <div class="space-y-3">
+                    <div class="flex gap-3">
+                        <input type="text" id="catName" placeholder="이름" class="w-2/3 p-5 bg-gray-50 rounded-2xl font-bold">
+                        <div class="relative w-1/3">
+                            <input type="number" id="catWeight" placeholder="0.0" class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-12">
+                            <span class="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-gray-400">kg</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <input type="date" id="catBirth" class="p-4 bg-gray-50 rounded-2xl font-bold text-xs">
+                        <select id="catGender" class="p-4 bg-gray-50 rounded-2xl font-bold text-sm">
+                            <option value="female">여아</option>
+                            <option value="male">남아</option>
+                        </select>
+                        <select id="catNeutered" class="p-4 bg-gray-50 rounded-2xl font-bold text-sm">
+                            <option value="true">중성화 O</option>
+                            <option value="false">중성화 X</option>
+                        </select>
+                    </div>
+                    <label class="flex items-center gap-3 p-5 bg-gray-50 rounded-2xl cursor-pointer">
+                        <input type="checkbox" id="isDiet" class="w-5 h-5 accent-[#2d7dd2]">
+                        <span class="font-bold text-gray-600 text-sm text-gray-400">지금은 다이어트가 필요해요</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="space-y-8">
+                <div class="flex justify-between items-end">
+                    <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
+                    <span class="text-[10px] font-bold text-gray-400 italic">먼저 건/습식 비중을 정해주세요</span>
+                </div>
+                
+                <div class="p-8 bg-gray-50 rounded-[2rem] space-y-6">
+                    <div class="flex justify-between items-center font-black">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-gray-400 uppercase tracking-tighter mb-1">DRY</span>
+                            <span class="text-2xl text-[#f4a44a]"><span id="dryTotalText">50</span><span class="text-sm">%</span></span>
+                        </div>
+                        <div class="text-gray-200 text-2xl font-light">:</div>
+                        <div class="flex flex-col text-right">
+                            <span class="text-[10px] text-gray-400 uppercase tracking-tighter mb-1">WET</span>
+                            <span class="text-2xl text-[#4a9af4]"><span id="wetTotalText">50</span><span class="text-sm">%</span></span>
+                        </div>
+                    </div>
+                    <input type="range" id="mainRatio" min="0" max="100" value="50" class="w-full" oninput="updateMainRatio(this.value)">
+                </div>
+
+                <div class="space-y-4">
+    <div class="flex justify-between items-center px-2">
+        <span class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</span>
+        <label class="flex items-center gap-2 cursor-pointer group">
+            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()" class="hidden peer">
+            <div class="w-5 h-5 bg-gray-200 rounded-md peer-checked:bg-[#f4a44a] transition-all flex items-center justify-center">
+                <svg class="w-3 h-3 text-white hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <span class="text-[10px] font-extrabold text-gray-400 group-hover:text-gray-600 transition-colors">건사료 교체 중</span>
+        </label>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>중성화 여부</label>
-        <select id="catNeutered">
-          <option value="true">중성화 O</option>
-          <option value="false">중성화 X</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>체중 (kg)</label>
-        <input type="number" id="catWeight" placeholder="예: 4.5" step="0.1" min="0.5" max="20">
-      </div>
+    
+    <div class="space-y-2">
+        <div class="relative rounded-2xl bg-orange-50 overflow-hidden border border-transparent focus-within:border-orange-200 transition-all">
+            <div class="flex items-center">
+                <input type="text" id="dryInput1" oninput="searchFeed('dry', this.value, 'dryRes1')" placeholder="건사료 검색" class="w-full p-5 bg-transparent font-bold placeholder:text-orange-200">
+                <div class="flex items-center bg-orange-100 px-4 h-[64px]">
+                    <input type="number" id="dryPct1" value="100" class="w-10 bg-transparent text-center font-black text-orange-600">
+                    <span class="text-[10px] font-black text-orange-400">%</span>
+                </div>
+            </div>
+            <div id="dryRes1" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
+        </div>
+
+        <div id="dryArea2" class="hidden relative rounded-2xl bg-orange-50 overflow-hidden border-2 border-dashed border-orange-200 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div class="flex items-center">
+                <input type="text" id="dryInput2" oninput="searchFeed('dry', this.value, 'dryRes2')" placeholder="교체할 새 건사료" class="w-full p-5 bg-transparent font-bold placeholder:text-orange-300">
+                <div class="flex items-center bg-orange-200 px-4 h-[64px]">
+                    <input type="number" id="dryPct2" value="0" class="w-10 bg-transparent text-center font-black text-orange-700">
+                    <span class="text-[10px] font-black text-orange-500">%</span>
+                </div>
+            </div>
+            <div id="dryRes2" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
+        </div>
     </div>
-    <label class="checkbox-row" style="margin-top:4px">
-      <input type="checkbox" id="isDiet">
-      다이어트 모드 (과체중 우려 시 — 계산값에서 10% 추가 차감)
-    </label>
-  </div>
-
-  <!-- 2. 필요 칼로리 -->
-  <div class="card" id="calorieCard" style="display:none">
-    <h2>하루 필요 칼로리</h2>
-    <div class="calorie-box">
-      <div class="calorie-main" id="derDisplay">- kcal</div>
-      <div class="calorie-sub" id="derDetail"></div>
-    </div>
-  </div>
-
-  <!-- 3. 비율 -->
-  <div class="card" id="ratioCard" style="display:none">
-    <h2>건사료 · 습식사료 비율</h2>
-    <div class="ratio-bar">
-      <div class="ratio-dry" id="ratioDryBar" style="width:30%">건사료 30%</div>
-      <div class="ratio-wet" id="ratioWetBar" style="width:70%">습식 70%</div>
-    </div>
-    <input type="range" id="ratioSlider" min="0" max="100" value="30">
-    <div style="display:flex; justify-content:space-between; font-size:12px; color:#999; margin-top:2px">
-      <span>← 습식 100%</span><span>건사료 100% →</span>
-    </div>
-  </div>
-
-  <!-- 4. 건사료 검색 -->
-  <div class="card" id="dryFeedCard" style="display:none">
-    <h2>건사료 검색</h2>
-    <label class="checkbox-row">
-      <input type="checkbox" id="isReplacing" onchange="toggleReplacing()">
-      현재 사료 교체 중입니다
-    </label>
-    <div id="dryFeedRows"></div>
-  </div>
-
-  <!-- 5. 습식사료 검색 -->
-  <div class="card" id="wetFeedCard" style="display:none">
-    <h2>습식사료 검색 <span style="font-size:12px;color:#aaa;font-weight:normal">(최대 3개)</span></h2>
-    <div id="wetFeedRows"></div>
-    <button class="add-feed-btn" id="addWetBtn" onclick="addWetFeed()">+ 습식사료 추가</button>
-  </div>
-
-  <!-- 6. 이미지 업로드 -->
-  <div class="card">
-    <h2>사료가 목록에 없나요?</h2>
-    <div class="upload-type-btns">
-      <button class="upload-type-btn active" id="uploadDryBtn" onclick="setUploadType('건사료')">건사료 추가</button>
-      <button class="upload-type-btn" id="uploadWetBtn" onclick="setUploadType('습식사료')">습식사료 추가</button>
-    </div>
-    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-      📷 이미지 한장에 제품명과 영양정보가 다 나오는 이미지를 올려주세요<br>
-      <span style="font-size:12px">JPG, PNG 권장 · 최대 5장 동시 선택 · 10MB 이하 · 선명할수록 정확합니다</span>
-    </div>
-    <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleUpload(this)">
-    <div id="uploadMsg"></div>
-  </div>
-
-  <!-- 7. 급여량 계산 버튼 -->
-  <button class="calc-btn" id="calcBtn" onclick="calculate()" disabled>급여량 계산하기</button>
-
-  <!-- 8. 급여량 결과 -->
-  <div class="card" id="resultCard" style="display:none">
-    <h2 id="resultTitle">계산 결과</h2>
-    <div id="resultItems"></div>
-  </div>
-
-  <!-- 9. 칼슘/인 분석 버튼 -->
-  <button class="cap-btn" id="capBtn" onclick="doCaP()" disabled>📊 칼슘 · 인 분석하기</button>
-
-  <!-- 10. 칼슘/인 분석 결과 -->
-  <div class="card" id="capCard" style="display:none">
-    <h2>📊 칼슘 · 인 분석</h2>
-    <div id="capItems"></div>
-  </div>
 </div>
 
-<script>
-// -----------------------------------------------
-// ⚙️ Apps Script 배포 URL
-// -----------------------------------------------
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyLj7T8COe35oZunKvZxnx8J8_kc0Aa4EM1XKThFw3dKRPFujFVVWCEx-d7LKX-4404/exec';
+                <div class="space-y-4">
+                    <div class="px-2 font-black text-[#4a9af4] text-xs italic">WET FOOD</div>
+                    <div class="space-y-2">
+                        <div class="relative rounded-2xl bg-blue-50 overflow-hidden">
+                            <div class="flex items-center">
+                                <input type="text" id="wetInput1" oninput="searchFeed('wet', this.value, 'wetRes1')" placeholder="습식사료 1" class="w-full p-5 bg-transparent font-bold">
+                                <div class="flex items-center bg-blue-100 px-4 h-[64px]">
+                                    <input type="number" id="wetPct1" value="100" class="w-10 bg-transparent text-center font-black text-blue-600">
+                                    <span class="text-[10px] font-black text-blue-400">%</span>
+                                </div>
+                            </div>
+                            <div id="wetRes1" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
+                        </div>
+                        <div class="relative rounded-2xl bg-blue-50/40 overflow-hidden border border-dashed border-blue-50">
+                            <div class="flex items-center">
+                                <input type="text" id="wetInput2" oninput="searchFeed('wet', this.value, 'wetRes2')" placeholder="습식사료 2 (선택)" class="w-full p-5 bg-transparent font-bold">
+                                <div class="flex items-center bg-blue-50/60 px-4 h-[64px]">
+                                    <input type="number" id="wetPct2" value="0" class="w-10 bg-transparent text-center font-black text-blue-300">
+                                    <span class="text-[10px] font-black text-blue-200">%</span>
+                                </div>
+                            </div>
+                            <div id="wetRes2" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
+                        </div>
+                        <div class="relative rounded-2xl bg-blue-50/40 overflow-hidden border border-dashed border-blue-50">
+                            <div class="flex items-center">
+                                <input type="text" id="wetInput3" oninput="searchFeed('wet', this.value, 'wetRes3')" placeholder="습식사료 3 (선택)" class="w-full p-5 bg-transparent font-bold">
+                                <div class="flex items-center bg-blue-50/60 px-4 h-[64px]">
+                                    <input type="number" id="wetPct3" value="0" class="w-10 bg-transparent text-center font-black text-blue-300">
+                                    <span class="text-[10px] font-black text-blue-200">%</span>
+                                </div>
+                            </div>
+                            <div id="wetRes3" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                </div>
 
-async function apiGet(action) {
-  const res = await fetch(`${APPS_SCRIPT_URL}?action=${action}`);
-  return res.json();
-}
-async function apiPost(body) {
-  const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
-  return res.json();
-}
+                <div class="pt-4">
+                    <button onclick="calculate()" class="w-full py-6 bg-[#2d7dd2] text-white font-black text-xl rounded-3xl shadow-xl active:scale-95 transition-all uppercase italic">
+                        Analyze Diet
+                    </button>
+                </div>
 
-// -----------------------------------------------
-// 전역 상태
-// -----------------------------------------------
-let state = {
-  건사료목록: [],
-  습식사료목록: [],
-  업로드_사료종류: '건사료',
-  마지막계산결과: null
-};
+                <div id="resultArea" class="hidden p-8 bg-gray-900 rounded-[2.5rem] text-white space-y-8 shadow-2xl">
+                    <div class="text-center space-y-2">
+                        <h3 class="font-black text-blue-400 uppercase italic tracking-widest text-sm">Feeding Plan</h3>
+                        <p class="text-4xl font-black italic" id="resDER">0 <span class="text-lg">kcal</span></p>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Daily Energy Requirement</p>
+                    </div>
+                    <div id="resDetails" class="space-y-3">
+                        </div>
+                </div>
+            </div>
+</main>
+    </div> <script>
+        // 1. Supabase 설정
+        const SUPABASE_URL = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // 본인의 키 전체 입력
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// -----------------------------------------------
-// 앱 시작
-// -----------------------------------------------
-window.onload = async function() {
-  try {
-    const [건결과, 습결과] = await Promise.all([
-      apiGet('getDryList'),
-      apiGet('getWetList')
-    ]);
-    if (건결과.성공) { state.건사료목록 = 건결과.목록; initDryFeedRows(); }
-    if (습결과.성공) { state.습식사료목록 = 습결과.목록; initWetFeedRows(); }
-  } catch(e) { console.error('목록 불러오기 실패:', e); }
+        // 2. 사료 정보 저장 객체
+        let selectedFeeds = { dry: [null, null], wet: [null, null, null] };
 
-  ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
-    document.getElementById(id).addEventListener('change', updateCalorie);
-  });
-  document.getElementById('catWeight').addEventListener('input', updateCalorie);
-  document.getElementById('ratioSlider').addEventListener('input', updateRatioBar);
-
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.autocomplete-wrap')) {
-      document.querySelectorAll('.autocomplete-list').forEach(l => l.classList.remove('show'));
-    }
-  });
-};
-
-// -----------------------------------------------
-// 칼로리 자동 계산
-// -----------------------------------------------
-function updateCalorie() {
-  const 체중 = parseFloat(document.getElementById('catWeight').value);
-  const 생년월일 = document.getElementById('catBirth').value;
-  const 중성화 = document.getElementById('catNeutered').value === 'true';
-  const 다이어트 = document.getElementById('isDiet').checked;
-  if (!체중 || !생년월일) return;
-
-  const 오늘 = new Date();
-  const 생일 = new Date(생년월일);
-  const 개월수 = (오늘.getFullYear() - 생일.getFullYear()) * 12
-               + (오늘.getMonth() - 생일.getMonth());
-  const RER = 70 * Math.pow(체중, 0.75);
-
-  let f_age, 단계;
-  if (개월수 < 4)        { f_age = 2.75; 단계 = '초기 성장기'; }
-  else if (개월수 < 9)   { f_age = 2.1;  단계 = '중기 성장기'; }
-  else if (개월수 < 12)  { f_age = 1.9;  단계 = '후기 성장기'; }
-  else if (개월수 >= 132){ f_age = 1.1;  단계 = '노령묘'; }
-  else { f_age = 중성화 ? 1.2 : 1.4; 단계 = 중성화 ? '중성화 성묘' : '비중성화 성묘'; }
-
-  const f_neuter = (개월수 < 12 && 중성화) ? 0.85 : 1.0;
-  const f_diet   = 다이어트 ? 0.9 : 1.0;
-  const DER = Math.round(RER * f_age * f_neuter * f_diet);
-
-  let 계수설명 = `RER ${Math.round(RER)} kcal × ${f_age} (${단계})`;
-  if (f_neuter < 1) 계수설명 += ` × ${f_neuter} (중성화)`;
-  if (f_diet < 1)   계수설명 += ` × ${f_diet} (다이어트)`;
-
-  document.getElementById('derDisplay').textContent = DER + ' kcal / day';
-  document.getElementById('derDetail').textContent = 계수설명;
-  ['calorieCard','ratioCard','dryFeedCard','wetFeedCard'].forEach(id => {
-    document.getElementById(id).style.display = 'block';
-  });
-  checkCalcReady();
-}
-
-// -----------------------------------------------
-// 비율 슬라이더
-// -----------------------------------------------
-function updateRatioBar() {
-  const 건 = parseInt(document.getElementById('ratioSlider').value);
-  const 습 = 100 - 건;
-  document.getElementById('ratioDryBar').style.width = 건 + '%';
-  document.getElementById('ratioDryBar').textContent = 건 > 12 ? `건사료 ${건}%` : '';
-  document.getElementById('ratioWetBar').style.width = 습 + '%';
-  document.getElementById('ratioWetBar').textContent = 습 > 12 ? `습식 ${습}%` : '';
-}
-
-// -----------------------------------------------
-// 자동완성 컴포넌트
-// -----------------------------------------------
-function createAutocomplete(목록, placeholder, onSelect) {
-  const wrap = document.createElement('div');
-  wrap.className = 'autocomplete-wrap';
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'autocomplete-input';
-  input.placeholder = placeholder;
-  input.autocomplete = 'off';
-
-  const clearBtn = document.createElement('button');
-  clearBtn.className = 'autocomplete-clear';
-  clearBtn.textContent = '✕';
-  clearBtn.onclick = e => {
-    e.stopPropagation();
-    input.value = '';
-    clearBtn.style.display = 'none';
-    wrap.dataset.value = '';
-    wrap.dataset.name = '';
-    list.classList.remove('show');
-    onSelect(null);
-  };
-
-  const list = document.createElement('div');
-  list.className = 'autocomplete-list';
-
-  function highlight(text, query) {
-    if (!query) return text;
-    const idx = text.toLowerCase().indexOf(query.toLowerCase());
-    if (idx < 0) return text;
-    return text.slice(0, idx) +
-      `<mark>${text.slice(idx, idx + query.length)}</mark>` +
-      text.slice(idx + query.length);
-  }
-
-  function showList(query) {
-    const 필터 = query
-      ? 목록.filter(f => f.표시명.toLowerCase().includes(query.toLowerCase()))
-      : 목록;
-    list.innerHTML = '';
-    if (필터.length === 0) {
-      list.innerHTML = '<div class="autocomplete-item" style="color:#aaa">검색 결과 없음</div>';
-    } else {
-      필터.slice(0, 30).forEach(f => {
-        const item = document.createElement('div');
-        item.className = 'autocomplete-item';
-        const parts = f.표시명.split(' | ');
-        if (parts.length === 2) {
-          item.innerHTML = `<span class="item-brand">${highlight(parts[0], query)}</span>
-                           <span>${highlight(parts[1], query)}</span>`;
-        } else {
-          item.innerHTML = `<span>${highlight(f.표시명, query)}</span>`;
+        // 3. 기능 함수들 (건사료 교체 토글, 검색, 계산 등)
+        function toggleDrySwitching() {
+            const checkbox = document.getElementById('drySwitching');
+            const area2 = document.getElementById('dryArea2');
+            if (checkbox.checked) {
+                area2.classList.remove('hidden');
+                document.getElementById('dryPct1').value = 70;
+                document.getElementById('dryPct2').value = 30;
+            } else {
+                area2.classList.add('hidden');
+                document.getElementById('dryPct1').value = 100;
+                document.getElementById('dryPct2').value = 0;
+            }
         }
-        item.onclick = () => {
-          input.value = f.표시명;
-          wrap.dataset.value = f.칼로리_kg;
-          wrap.dataset.name = f.이름;
-          clearBtn.style.display = 'block';
-          list.classList.remove('show');
-          onSelect(f);
-        };
-        list.appendChild(item);
-      });
-    }
-    list.classList.add('show');
-  }
 
-  input.addEventListener('input', () => {
-    clearBtn.style.display = input.value ? 'block' : 'none';
-    showList(input.value);
-  });
-  input.addEventListener('focus', () => showList(input.value));
+        // ... 나머지 searchFeed, calculate 함수들 ...
+        
+    </script>
 
-  wrap.appendChild(input);
-  wrap.appendChild(clearBtn);
-  wrap.appendChild(list);
-  return wrap;
-}
-
-// -----------------------------------------------
-// 건사료 행 관리
-// -----------------------------------------------
-function initDryFeedRows() {
-  const container = document.getElementById('dryFeedRows');
-  container.innerHTML = '';
-  container.appendChild(makeDryRow('현사료', false));
-}
-
-function makeDryRow(labelText, showRatio) {
-  const row = document.createElement('div');
-  row.className = 'feed-row dry-feed-row';
-
-  const label = document.createElement('span');
-  label.className = 'dry-label';
-  label.textContent = labelText;
-
-  const ac = createAutocomplete(state.건사료목록, '건사료 이름 검색...', () => checkCalcReady());
-
-  const ratioInput = document.createElement('input');
-  ratioInput.type = 'number';
-  ratioInput.className = 'feed-ratio-input';
-  ratioInput.min = 0; ratioInput.max = 100; ratioInput.value = 50;
-  ratioInput.placeholder = '%';
-  ratioInput.style.display = showRatio ? 'block' : 'none';
-  ratioInput.addEventListener('input', checkCalcReady);
-
-  row.appendChild(label);
-  row.appendChild(ac);
-  row.appendChild(ratioInput);
-  return row;
-}
-
-function toggleReplacing() {
-  const isChecked = document.getElementById('isReplacing').checked;
-  const container = document.getElementById('dryFeedRows');
-  container.innerHTML = '';
-  container.appendChild(makeDryRow('현사료', isChecked));
-  if (isChecked) container.appendChild(makeDryRow('신사료', isChecked));
-  checkCalcReady();
-}
-
-// -----------------------------------------------
-// 습식사료 행 관리
-// -----------------------------------------------
-function initWetFeedRows() {
-  const container = document.getElementById('wetFeedRows');
-  container.innerHTML = '';
-  container.appendChild(makeWetRow());
-  updateWetRatios();
-}
-
-function makeWetRow() {
-  const row = document.createElement('div');
-  row.className = 'feed-row wet-feed-row';
-
-  const ac = createAutocomplete(state.습식사료목록, '습식사료 이름 검색...', () => checkCalcReady());
-
-  const ratioInput = document.createElement('input');
-  ratioInput.type = 'number';
-  ratioInput.className = 'feed-ratio-input';
-  ratioInput.placeholder = '%'; ratioInput.min = 0; ratioInput.max = 100;
-  ratioInput.addEventListener('input', checkCalcReady);
-
-  const removeBtn = document.createElement('button');
-  removeBtn.className = 'remove-btn';
-  removeBtn.textContent = '✕';
-  removeBtn.onclick = () => {
-    row.remove();
-    updateWetRatios();
-    updateAddWetBtn();
-    checkCalcReady();
-  };
-
-  row.appendChild(ac);
-  row.appendChild(ratioInput);
-  row.appendChild(removeBtn);
-  return row;
-}
-
-function addWetFeed() {
-  const container = document.getElementById('wetFeedRows');
-  if (container.querySelectorAll('.wet-feed-row').length >= 3) return;
-  container.appendChild(makeWetRow());
-  updateWetRatios();
-  updateAddWetBtn();
-}
-
-function updateWetRatios() {
-  const rows = document.querySelectorAll('#wetFeedRows .wet-feed-row');
-  rows.forEach(row => {
-    const input = row.querySelector('.feed-ratio-input');
-    if (rows.length === 1) {
-      input.style.display = 'none'; input.value = 100;
-    } else {
-      input.style.display = 'block';
-      if (!input.value || input.value == 100) input.value = Math.floor(100 / rows.length);
-    }
-  });
-}
-
-function updateAddWetBtn() {
-  const count = document.querySelectorAll('#wetFeedRows .wet-feed-row').length;
-  document.getElementById('addWetBtn').style.display = count >= 3 ? 'none' : 'block';
-}
-
-function checkCalcReady() {
-  const 체중OK = parseFloat(document.getElementById('catWeight').value) > 0;
-  const 날짜OK = !!document.getElementById('catBirth').value;
-  const 건AC = document.querySelector('#dryFeedRows .autocomplete-wrap');
-  const 습AC = document.querySelector('#wetFeedRows .autocomplete-wrap');
-  const 건OK = 건AC && !!건AC.dataset.value;
-  const 습OK = 습AC && !!습AC.dataset.value;
-  document.getElementById('calcBtn').disabled = !(체중OK && 날짜OK && 건OK && 습OK);
-}
-
-// -----------------------------------------------
-// 업로드
-// -----------------------------------------------
-function setUploadType(종류) {
-  state.업로드_사료종류 = 종류;
-  document.getElementById('uploadDryBtn').className =
-    'upload-type-btn' + (종류 === '건사료' ? ' active' : '');
-  document.getElementById('uploadWetBtn').className =
-    'upload-type-btn' + (종류 === '습식사료' ? ' active' : '');
-}
-
-function handleUpload(input) {
-  if (!input.files || !input.files.length) return;
-  const 파일목록 = Array.from(input.files).slice(0, 5);
-  const msgEl = document.getElementById('uploadMsg');
-  const 전체수 = 파일목록.length;
-  let 완료수 = 0, 실패수 = 0;
-
-  msgEl.innerHTML = `<div class="msg loading">📡 0 / ${전체수} 분석 중... 잠시 기다려주세요</div>`;
-
-  async function 다음업로드(index) {
-    if (index >= 파일목록.length) return;
-    const file = 파일목록[index];
-    const base64 = await new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result.split(',')[1]);
-      reader.readAsDataURL(file);
-    });
-    try {
-      const res = await apiPost({
-        action: 'upload', base64Data: base64,
-        mimeType: file.type, fileName: file.name, 사료종류: state.업로드_사료종류
-      });
-      if (res.성공) 완료수++; else 실패수++;
-    } catch(e) { 실패수++; }
-
-    const 진행 = 완료수 + 실패수;
-    if (진행 < 전체수) {
-      msgEl.innerHTML = `<div class="msg loading">📡 ${진행} / ${전체수} 처리 중...</div>`;
-    } else {
-      msgEl.innerHTML = `<div class="msg success">✅ ${완료수}개 추가 완료${실패수 > 0 ? ` (${실패수}개 실패)` : ''}!</div>`;
-      await 드롭다운업데이트();
-      document.getElementById('fileInput').value = '';
-    }
-    setTimeout(() => 다음업로드(index + 1), 2000);
-  }
-  다음업로드(0);
-}
-
-async function 드롭다운업데이트() {
-  const action = state.업로드_사료종류 === '건사료' ? 'getDryList' : 'getWetList';
-  const 목록키 = state.업로드_사료종류 === '건사료' ? '건사료목록' : '습식사료목록';
-  const res = await apiGet(action);
-  if (res.성공) state[목록키] = res.목록;
-}
-
-// -----------------------------------------------
-// 급여량 계산
-// -----------------------------------------------
-async function calculate() {
-  const 고양이정보 = {
-    이름: document.getElementById('catName').value || '우리 고양이',
-    생년월일: document.getElementById('catBirth').value,
-    중성화여부: document.getElementById('catNeutered').value === 'true',
-    체중_kg: parseFloat(document.getElementById('catWeight').value),
-    다이어트모드: document.getElementById('isDiet').checked
-  };
-
-  const 건비율 = parseInt(document.getElementById('ratioSlider').value);
-  const 교체중 = document.getElementById('isReplacing').checked;
-
-  const 건사료목록 = [];
-  document.querySelectorAll('#dryFeedRows .dry-feed-row').forEach(row => {
-    const ac = row.querySelector('.autocomplete-wrap');
-    const ratioInput = row.querySelector('.feed-ratio-input');
-    if (ac && ac.dataset.value) {
-      건사료목록.push({
-        이름: ac.dataset.name,
-        칼로리_kg: parseFloat(ac.dataset.value),
-        비율: 교체중 ? (parseFloat(ratioInput.value) || 50) : 100
-      });
-    }
-  });
-
-  const 습식사료목록 = [];
-  document.querySelectorAll('#wetFeedRows .wet-feed-row').forEach(row => {
-    const ac = row.querySelector('.autocomplete-wrap');
-    const ratioInput = row.querySelector('.feed-ratio-input');
-    if (ac && ac.dataset.value) {
-      습식사료목록.push({
-        이름: ac.dataset.name,
-        칼로리_kg: parseFloat(ac.dataset.value),
-        비율: parseFloat(ratioInput.value) || 100
-      });
-    }
-  });
-
-  document.getElementById('calcBtn').textContent = '계산 중...';
-  document.getElementById('calcBtn').disabled = true;
-
-  try {
-    const 결과 = await apiPost({
-      action: 'calculate',
-      data: { 고양이정보, 건사료목록, 습식사료목록, 건사료_전체비율: 건비율, 습식사료_전체비율: 100 - 건비율 }
-    });
-    showResult(결과);
-  } catch(e) {
-    alert('계산 중 오류가 발생했습니다.');
-  } finally {
-    document.getElementById('calcBtn').textContent = '급여량 계산하기';
-    checkCalcReady();
-  }
-}
-
-function showResult(결과) {
-  if (!결과.성공) { alert(결과.오류); return; }
-
-  // 마지막 결과 저장 → 칼슘/인 분석에 재사용
-  state.마지막계산결과 = 결과;
-  document.getElementById('capBtn').disabled = false;
-  document.getElementById('capCard').style.display = 'none';
-
-  document.getElementById('resultTitle').textContent = `${결과.고양이.이름}의 하루 급여량`;
-  const container = document.getElementById('resultItems');
-  container.innerHTML = '';
-
-  결과.건사료_결과.forEach(사료 => {
-    container.innerHTML += `
-      <div class="result-item">
-        <div class="result-tag">건사료</div>
-        <div class="result-name">${사료.이름}</div>
-        <div class="result-amount">${사료.급여량_g} g</div>
-        <div class="result-kcal">${사료.담당칼로리} kcal</div>
-      </div>`;
-  });
-
-  결과.습식사료_결과.forEach(사료 => {
-    container.innerHTML += `
-      <div class="result-item wet">
-        <div class="result-tag wet">습식사료</div>
-        <div class="result-name">${사료.이름}</div>
-        <div class="result-amount">${사료.급여량_g} g</div>
-        <div class="result-kcal">${사료.담당칼로리} kcal</div>
-      </div>`;
-  });
-
-  container.innerHTML += `
-    <div style="text-align:right; font-size:13px; color:#999; margin-top:8px">
-      총 ${결과.총칼로리} kcal / day
-    </div>
-    <div style="font-size:12px; color:#bbb; margin-top:12px; line-height:1.6">
-      ※ 이 계산 결과는 참고용입니다. 실제 급여량은 고양이의 건강 상태에 따라
-      다를 수 있으며, 질환이 있는 경우 반드시 수의사와 상담하세요.
-    </div>`;
-
-  document.getElementById('resultCard').style.display = 'block';
-  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
-}
-
-// -----------------------------------------------
-// 칼슘/인 분석
-// -----------------------------------------------
-async function doCaP() {
-  if (!state.마지막계산결과) return;
-
-  // 급여량 결과에 칼슘/인 데이터 붙이기
-  function 데이터붙이기(결과목록, 사료목록) {
-    return 결과목록.map(사료 => {
-      const 원본 = 사료목록.find(f => f.이름 === 사료.이름);
-      return {
-        ...사료,
-        에너지기준_칼슘: 원본?.에너지기준_칼슘 || null,
-        에너지기준_인:   원본?.에너지기준_인   || null
-      };
-    });
-  }
-
-  const 요청 = {
-    건사료_결과:  데이터붙이기(state.마지막계산결과.건사료_결과,  state.건사료목록),
-    습식사료_결과: 데이터붙이기(state.마지막계산결과.습식사료_결과, state.습식사료목록),
-    총칼로리: state.마지막계산결과.총칼로리
-  };
-
-  document.getElementById('capBtn').textContent = '분석 중...';
-  document.getElementById('capBtn').disabled = true;
-
-  try {
-    const 결과 = await apiPost({ action: 'calculateCaP', data: 요청 });
-    showCaPResult(결과);
-  } catch(e) {
-    alert('분석 중 오류가 발생했습니다.');
-  } finally {
-    document.getElementById('capBtn').textContent = '📊 칼슘 · 인 분석하기';
-    document.getElementById('capBtn').disabled = false;
-  }
-}
-
-function showCaPResult(결과) {
-  if (!결과.성공) { alert(결과.오류); return; }
-
-  const cls = { good: 'status-good', low: 'status-low', high: 'status-high', over: 'status-over', none: 'status-none' };
-  const icon = { good: '✅', low: '⚠️', high: '⚠️', over: '❌', none: '❓' };
-
-  let html = '';
-
-  // 총량 카드
-  html += `<div class="cap-summary">
-    <div class="cap-box">
-      <div class="cap-label">하루 칼슘 섭취량</div>
-      <div class="cap-value">${결과.총칼슘_mg}</div>
-      <div class="cap-unit">mg / day</div>
-      <div class="cap-ref ${cls[결과.칼슘판정.상태]}">
-        ${icon[결과.칼슘판정.상태]} ${결과.칼슘판정.텍스트}<br>
-        <span style="font-size:11px;color:#aaa">권장 ${결과.NRC.칼슘_권장}mg / 1000kcal</span>
-      </div>
-    </div>
-    <div class="cap-box">
-      <div class="cap-label">하루 인 섭취량</div>
-      <div class="cap-value">${결과.총인_mg}</div>
-      <div class="cap-unit">mg / day</div>
-      <div class="cap-ref ${cls[결과.인판정.상태]}">
-        ${icon[결과.인판정.상태]} ${결과.인판정.텍스트}<br>
-        <span style="font-size:11px;color:#aaa">권장 ${결과.NRC.인_권장}mg / 1000kcal</span>
-      </div>
-    </div>
-  </div>`;
-
-  // 비율 카드
-  const 비율표시 = 결과.CaP비율 ? `${결과.CaP비율} : 1` : '계산 불가';
-  html += `<div class="cap-ratio-box">
-    <div class="cap-label">칼슘 : 인 비율</div>
-    <div class="cap-ratio-value ${cls[결과.비율판정.상태]}">${비율표시}</div>
-    <div class="cap-ratio-label">
-      ${icon[결과.비율판정.상태]} ${결과.비율판정.텍스트}
-      &nbsp;·&nbsp; 정상 범위 ${결과.NRC.비율_최소} ~ ${결과.NRC.비율_상한} : 1
-    </div>
-  </div>`;
-
-  // 사료별 기여량
-  html += `<div class="cap-section-title">사료별 기여량</div>`;
-  결과.사료별결과.forEach(사료 => {
-    html += `<div class="cap-feed-item ${사료.종류 === '건사료' ? 'dry' : 'wet'}">
-      <div class="cap-feed-name">${사료.이름}</div>
-      <div class="cap-feed-values">
-        칼슘 ${사료.칼슘_mg} mg &nbsp;·&nbsp; 인 ${사료.인_mg} mg
-        &nbsp;·&nbsp; ${사료.담당칼로리} kcal
-      </div>
-    </div>`;
-  });
-
-  // 데이터 없는 사료 안내
-  if (결과.데이터없는사료.length > 0) {
-    html += `<div class="cap-warn">
-      ※ 아래 사료는 칼슘/인 데이터가 없어 계산에서 제외되었습니다<br>
-      ${결과.데이터없는사료.join(', ')}
-    </div>`;
-  }
-
-  html += `<div class="cap-warn">
-    ※ NRC 성묘 기준으로 분석한 참고값입니다. 성장기·노령묘·질환묘는
-    기준값이 다를 수 있으며, 정확한 판단은 수의사와 상담하세요.
-  </div>`;
-
-  document.getElementById('capItems').innerHTML = html;
-  document.getElementById('capCard').style.display = 'block';
-  document.getElementById('capCard').scrollIntoView({ behavior: 'smooth' });
-}
-</script>
-</body>
-</html>
+</body> </html>
