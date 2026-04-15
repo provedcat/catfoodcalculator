@@ -352,6 +352,25 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwHbg3UvqnWyP39
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// 데이터 불러오기 테스트 함수
+async function testFetch() {
+  try {
+    // 'feeds'는 실제 Supabase에 만든 테이블 이름으로 바꾸세요.
+    const { data, error } = await supabaseClient
+      .from('feeds') 
+      .select('*')
+      .limit(5);
+
+    if (error) {
+      console.error('데이터 로드 실패:', error.message);
+    } else {
+      console.log('불러온 데이터:', data);
+    }
+  } catch (err) {
+    console.error('통신 오류:', err);
+  }
+}
+  
 // -----------------------------------------------
 // 전역 상태
 // -----------------------------------------------
