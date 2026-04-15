@@ -1,307 +1,557 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ProvedCat - 고양이 영양 설계</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <style>
-        :root { --brand-main: #2d7dd2; --dry-food: #f4a44a; --wet-food: #4a9af4; }
-        body { font-size: 16px; background-color: #f3f4f6; word-break: keep-all; font-family: -apple-system, sans-serif; }
-        input, button, select { outline: none !important; border: none !important; }
-        input[type=range] { -webkit-appearance: none; background: #e5e7eb; height: 8px; border-radius: 4px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: var(--brand-main); border-radius: 50%; cursor: pointer; border: 4px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProvedCat - 고양이 영양 설계</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    :root { --brand:#2d7dd2; --dry:#f4a44a; --wet:#4a9af4; }
+    body { font-size:16px; background:#f3f4f6; word-break:keep-all; font-family:-apple-system,sans-serif; }
+    input,select { outline:none; }
+    input[type=range] { -webkit-appearance:none; background:#e5e7eb; height:8px; border-radius:4px; width:100%; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; background:var(--brand); border-radius:50%; cursor:pointer; border:4px solid white; box-shadow:0 2px 4px rgba(0,0,0,.15); }
+    .autocomplete-item:hover { background:#f0f7ff; }
+  </style>
 </head>
 <body class="flex justify-center">
-    <div class="w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
-        <header class="p-6 pt-10 flex justify-between items-center bg-white">
-            <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
-        </header>
+<div class="w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
 
-        <main class="p-6 pb-20 space-y-10">
-            <div class="space-y-6">
-                <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
-                <div class="space-y-3">
-                    <div class="flex gap-3">
-                        <input type="text" id="catName" placeholder="이름" class="w-2/3 p-5 bg-gray-50 rounded-2xl font-bold">
-                        <div class="relative w-1/3">
-                            <input type="number" id="catWeight" placeholder="0.0" class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-12">
-                            <span class="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-gray-400">kg</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-3">
-                        <input type="date" id="catBirth" class="p-4 bg-gray-50 rounded-2xl font-bold text-xs">
-                        <select id="catGender" class="p-4 bg-gray-50 rounded-2xl font-bold text-sm">
-                            <option value="female">여아</option>
-                            <option value="male">남아</option>
-                        </select>
-                        <select id="catNeutered" class="p-4 bg-gray-50 rounded-2xl font-bold text-sm">
-                            <option value="true">중성화 O</option>
-                            <option value="false">중성화 X</option>
-                        </select>
-                    </div>
-                    <label class="flex items-center gap-3 p-5 bg-gray-50 rounded-2xl cursor-pointer">
-                        <input type="checkbox" id="isDiet" class="w-5 h-5 accent-[#2d7dd2]">
-                        <span class="font-bold text-gray-600 text-sm">다이어트 모드</span>
-                    </label>
-                </div>
+  <!-- 헤더 -->
+  <header class="px-6 pt-10 pb-4 flex justify-between items-center">
+    <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
+    <button id="loginBtn" onclick="toggleAuth()"
+      class="text-xs font-bold text-gray-400 border border-gray-200 rounded-xl px-3 py-2">
+      로그인
+    </button>
+  </header>
+
+  <!-- 로그인 모달 -->
+  <div id="authModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
+    <div class="bg-white rounded-3xl p-8 w-full max-w-sm space-y-4">
+      <h3 class="font-black text-xl text-center">로그인 / 회원가입</h3>
+      <input type="email" id="authEmail" placeholder="이메일"
+        class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+      <input type="password" id="authPassword" placeholder="비밀번호"
+        class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+      <button onclick="signIn()"
+        class="w-full py-4 bg-[#2d7dd2] text-white font-black rounded-2xl">로그인</button>
+      <button onclick="signUp()"
+        class="w-full py-4 bg-gray-100 text-gray-600 font-black rounded-2xl">회원가입</button>
+      <p id="authMsg" class="text-center text-xs text-red-400 hidden"></p>
+      <button onclick="closeAuth()" class="w-full text-center text-xs text-gray-300 pt-2">닫기</button>
+    </div>
+  </div>
+
+  <main class="px-6 pb-28 space-y-10">
+
+    <!-- 1단계: 고양이 정보 -->
+    <section class="space-y-4">
+      <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
+      <div class="flex gap-3">
+        <input type="text" id="catName" placeholder="고양이 이름"
+          class="flex-1 p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
+        <div class="relative w-32">
+          <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
+            class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <input type="date" id="catBirth"
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+        <select id="catNeutered"
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+          <option value="true">중성화 O</option>
+          <option value="false">중성화 X</option>
+        </select>
+      </div>
+      <label class="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl cursor-pointer border border-gray-100">
+        <input type="checkbox" id="isDiet" class="w-5 h-5 accent-[#2d7dd2]">
+        <div>
+          <p class="font-bold text-sm text-gray-700">다이어트 모드</p>
+          <p class="text-xs text-gray-400">계산값에서 10% 추가 차감</p>
+        </div>
+      </label>
+
+      <!-- 칼로리 표시 -->
+      <div id="calBox" class="hidden p-6 bg-blue-50 rounded-2xl text-center">
+        <p class="text-xs font-bold text-blue-400 mb-1">하루 필요 칼로리</p>
+        <p class="text-4xl font-black text-[#2d7dd2]" id="derVal">0</p>
+        <p class="text-xs text-gray-400 mt-1" id="derDetail"></p>
+      </div>
+    </section>
+
+    <!-- 2단계: 식단 구성 -->
+    <section class="space-y-6">
+      <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
+
+      <!-- 건/습 비율 슬라이더 -->
+      <div class="p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
+        <div class="flex justify-between items-center font-black">
+          <div>
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">DRY</p>
+            <p class="text-2xl text-[#f4a44a]"><span id="dryPct">30</span><span class="text-sm">%</span></p>
+          </div>
+          <div class="text-gray-200 text-xl">:</div>
+          <div class="text-right">
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">WET</p>
+            <p class="text-2xl text-[#4a9af4]"><span id="wetPct">70</span><span class="text-sm">%</span></p>
+          </div>
+        </div>
+        <input type="range" id="ratioSlider" min="0" max="100" value="30"
+          oninput="updateRatio(this.value)">
+        <div class="flex justify-between text-[10px] text-gray-300 font-bold">
+          <span>← 습식 100%</span><span>건사료 100% →</span>
+        </div>
+      </div>
+
+      <!-- 건사료 검색 -->
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()"
+              class="w-4 h-4 accent-[#f4a44a]">
+            <span class="text-xs font-bold text-gray-400">교체 중</span>
+          </label>
+        </div>
+
+        <!-- 건사료 1 -->
+        <div class="relative">
+          <div class="flex items-center bg-orange-50 rounded-2xl border border-orange-100 overflow-hidden">
+            <input type="text" id="dryInput1" placeholder="건사료 검색..."
+              oninput="searchFeed('dry',this.value,'dryList1',0)"
+              onfocus="searchFeed('dry',this.value,'dryList1',0)"
+              class="flex-1 p-4 bg-transparent font-bold text-sm">
+            <div id="drySwPctWrap1" class="hidden items-center bg-orange-100 px-3 h-14">
+              <input type="number" id="drySwPct1" value="70" min="0" max="100"
+                class="w-10 bg-transparent text-center font-black text-orange-600 text-sm">
+              <span class="text-xs font-black text-orange-400">%</span>
             </div>
+          </div>
+          <div id="dryList1"
+            class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
+          </div>
+          <p id="drySelected1" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
+        </div>
 
-            <div class="space-y-8">
-                <div class="flex justify-between items-end">
-                    <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
-                </div>
-                <div class="p-8 bg-gray-50 rounded-[2rem] space-y-6">
-                    <div class="flex justify-between items-center font-black">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] text-gray-400 uppercase tracking-tighter mb-1">DRY</span>
-                            <span class="text-2xl text-[#f4a44a]"><span id="dryTotalText">50</span><span class="text-sm">%</span></span>
-                        </div>
-                        <div class="text-gray-200 text-2xl font-light">:</div>
-                        <div class="flex flex-col text-right">
-                            <span class="text-[10px] text-gray-400 uppercase tracking-tighter mb-1">WET</span>
-                            <span class="text-2xl text-[#4a9af4]"><span id="wetTotalText">50</span><span class="text-sm">%</span></span>
-                        </div>
-                    </div>
-                    <input type="range" id="mainRatio" min="0" max="100" value="50" class="w-full" oninput="updateMainRatio(this.value)">
-                </div>
-
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center px-2">
-                        <span class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</span>
-                        <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()" class="hidden peer">
-                            <div class="w-5 h-5 bg-gray-200 rounded-md peer-checked:bg-[#f4a44a] transition-all flex items-center justify-center">
-                                <svg class="w-3 h-3 text-white hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                            </div>
-                            <span class="text-[10px] font-extrabold text-gray-400">건사료 교체 중</span>
-                        </label>
-                    </div>
-                    <div class="space-y-2">
-                        <div class="relative rounded-2xl bg-orange-50 overflow-hidden">
-                            <div class="flex items-center">
-                                <input type="text" id="dryInput1" oninput="searchFeed('dry', this.value, 'dryRes1')" placeholder="건사료 검색" class="w-full p-5 bg-transparent font-bold">
-                                <div class="flex items-center bg-orange-100 px-4 h-[64px]">
-                                    <input type="number" id="dryPct1" value="100" class="w-10 bg-transparent text-center font-black text-orange-600">
-                                    <span class="text-[10px] font-black text-orange-400">%</span>
-                                </div>
-                            </div>
-                            <div id="dryRes1" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
-                        </div>
-                        <div id="dryArea2" class="hidden relative rounded-2xl bg-orange-50 overflow-hidden border-2 border-dashed border-orange-200">
-                            <div class="flex items-center">
-                                <input type="text" id="dryInput2" oninput="searchFeed('dry', this.value, 'dryRes2')" placeholder="새 건사료" class="w-full p-5 bg-transparent font-bold">
-                                <div class="flex items-center bg-orange-200 px-4 h-[64px]">
-                                    <input type="number" id="dryPct2" value="0" class="w-10 bg-transparent text-center font-black text-orange-700">
-                                    <span class="text-[10px] font-black text-orange-500">%</span>
-                                </div>
-                            </div>
-                            <div id="dryRes2" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="px-2 font-black text-[#4a9af4] text-xs italic">WET FOOD</div>
-                    <div class="space-y-2">
-                        <div class="relative rounded-2xl bg-blue-50 overflow-hidden">
-                            <div class="flex items-center">
-                                <input type="text" id="wetInput1" oninput="searchFeed('wet', this.value, 'wetRes1')" placeholder="습식사료 검색" class="w-full p-5 bg-transparent font-bold">
-                                <div class="flex items-center bg-blue-100 px-4 h-[64px]">
-                                    <input type="number" id="wetPct1" value="100" class="w-10 bg-transparent text-center font-black text-blue-600">
-                                    <span class="text-[10px] font-black text-blue-400">%</span>
-                                </div>
-                            </div>
-                            <div id="wetRes1" class="absolute left-0 right-0 z-50 bg-white shadow-2xl max-h-40 overflow-y-auto"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="pt-4">
-                    <button onclick="calculate()" class="w-full py-6 bg-[#2d7dd2] text-white font-black text-xl rounded-3xl shadow-xl uppercase italic">
-                        Analyze Diet
-                    </button>
-                </div>
-
-                <div id="resultArea" class="hidden p-8 bg-gray-900 rounded-[2.5rem] text-white space-y-8 shadow-2xl">
-                    <div class="text-center space-y-2">
-                        <h3 class="font-black text-blue-400 uppercase italic tracking-widest text-sm">Feeding Plan</h3>
-                        <p class="text-4xl font-black italic" id="resDER">0 <span class="text-lg">kcal</span></p>
-                    </div>
-                    <div id="resDetails" class="space-y-3"></div>
-                </div>
+        <!-- 건사료 2 (교체 중일 때) -->
+        <div id="dryArea2" class="hidden relative">
+          <div class="flex items-center bg-orange-50 rounded-2xl border border-dashed border-orange-200 overflow-hidden">
+            <input type="text" id="dryInput2" placeholder="새 건사료 검색..."
+              oninput="searchFeed('dry',this.value,'dryList2',1)"
+              onfocus="searchFeed('dry',this.value,'dryList2',1)"
+              class="flex-1 p-4 bg-transparent font-bold text-sm">
+            <div class="flex items-center bg-orange-100 px-3 h-14">
+              <input type="number" id="drySwPct2" value="30" min="0" max="100"
+                class="w-10 bg-transparent text-center font-black text-orange-600 text-sm">
+              <span class="text-xs font-black text-orange-400">%</span>
             </div>
-        </main>
+          </div>
+          <div id="dryList2"
+            class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
+          </div>
+          <p id="drySelected2" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
+        </div>
+      </div>
+
+      <!-- 습식사료 검색 -->
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-black text-[#4a9af4] tracking-widest italic">WET FOOD</p>
+          <button onclick="addWetSlot()" id="addWetBtn"
+            class="text-xs font-bold text-blue-400 border border-blue-200 rounded-xl px-3 py-1">
+            + 추가 (최대 3개)
+          </button>
+        </div>
+        <div id="wetSlots" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- 계산 버튼 -->
+    <button onclick="calculate()"
+      class="w-full py-5 bg-[#2d7dd2] text-white font-black text-lg rounded-3xl shadow-lg">
+      급여량 계산하기
+    </button>
+
+    <!-- 결과 -->
+    <div id="resultArea" class="hidden space-y-4">
+      <div class="p-6 bg-gray-900 rounded-3xl text-white text-center">
+        <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Daily Feeding Plan</p>
+        <p class="text-5xl font-black text-white" id="resDER">0</p>
+        <p class="text-xs text-gray-400 mt-1">kcal / day</p>
+      </div>
+      <div id="resItems" class="space-y-2"></div>
+      <p class="text-xs text-gray-300 text-center leading-relaxed">
+        ※ 참고용 계산값입니다. 질환이 있는 경우 수의사와 상담하세요.
+      </p>
     </div>
 
-   <script>
-const SUPABASE_URL = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2x2dGduaHJkbXp4emxzdHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NjE1MjIsImV4cCI6MjA5MTUzNzUyMn0.6nI4uEp9H9gVn3Sjm4Qhs5XXFvhUhfGBf6e0Nqce1EM';const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <!-- 칼슘/인 분석 버튼 -->
+    <button id="capBtn" onclick="analyzeCaP()" class="hidden w-full py-5 bg-[#5a9e6f] text-white font-black text-lg rounded-3xl shadow-lg">
+      📊 칼슘 · 인 분석하기
+    </button>
 
-let selectedFeeds = { dry: [null, null], wet: [null, null, null] };
+    <!-- 칼슘/인 결과 -->
+    <div id="capResult" class="hidden space-y-3"></div>
 
+    <!-- 사료 추가 업로드 -->
+    <section class="space-y-4 pt-4 border-t border-gray-100">
+      <h2 class="text-lg font-black text-gray-700">사료가 없나요?</h2>
+      <p class="text-xs text-gray-400 leading-relaxed">
+        영양성분표가 모두 보이는 사진 <strong>1장</strong>을 올려주세요.<br>
+        앞면·뒷면 등 여러 장이 필요한 경우 각각 업로드해주세요.
+      </p>
+      <div class="flex gap-2">
+        <button onclick="setUploadType('dry')" id="upDryBtn"
+          class="flex-1 py-3 rounded-2xl text-sm font-black border-2 border-[#f4a44a] text-[#f4a44a]">
+          건사료 추가
+        </button>
+        <button onclick="setUploadType('wet')" id="upWetBtn"
+          class="flex-1 py-3 rounded-2xl text-sm font-black border border-gray-200 text-gray-400">
+          습식사료 추가
+        </button>
+      </div>
+      <label class="block w-full">
+        <div class="w-full py-6 border-2 border-dashed border-gray-200 rounded-2xl text-center cursor-pointer hover:border-[#2d7dd2] transition-colors">
+          <p class="text-2xl mb-1">📷</p>
+          <p class="text-sm font-bold text-gray-400">사진을 선택하세요</p>
+          <p class="text-xs text-gray-300 mt-1">JPG, PNG · 최대 5장 · 10MB 이하</p>
+        </div>
+        <input type="file" id="uploadInput" accept="image/*" multiple class="hidden"
+          onchange="handleUpload(this)">
+      </label>
+      <div id="uploadMsg"></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// -----------------------------------------------
+// ⚙️ 설정
+// -----------------------------------------------
+const SUPABASE_URL  = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2x2dGduaHJkbXp4emxzdHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NjE1MjIsImV4cCI6MjA5MTUzNzUyMn0.6nI4uEp9H9gVn3Sjm4Qhs5XXFvhUhfGBf6e0Nqce1EM';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/여기에_배포URL/exec';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// -----------------------------------------------
+// 전역 상태
+// -----------------------------------------------
+let state = {
+  dryFeeds:    [null, null],   // 선택된 건사료 [0]=현사료 [1]=신사료
+  wetFeeds:    [null, null, null],  // 선택된 습식사료
+  wetSlotCount: 1,
+  uploadType:  'dry',
+  lastResult:  null,
+  user:        null
+};
+
+// -----------------------------------------------
+// 앱 시작
+// -----------------------------------------------
+window.addEventListener('DOMContentLoaded', async () => {
+  // 로그인 상태 확인
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) onLogin(session.user);
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) onLogin(session.user);
+    else onLogout();
+  });
+
+  // 첫 번째 습식사료 슬롯 생성
+  addWetSlot();
+
+  // 고양이 정보 변경 시 칼로리 자동 계산
+  ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('change', updateCalorie);
+    if (id === 'catWeight') el.addEventListener('input', updateCalorie);
+  });
+});
+
+// -----------------------------------------------
+// 인증
+// -----------------------------------------------
+function toggleAuth() {
+  document.getElementById('authModal').classList.toggle('hidden');
+}
+function closeAuth() {
+  document.getElementById('authModal').classList.add('hidden');
+}
+async function signIn() {
+  const email    = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) showAuthMsg(error.message);
+  else closeAuth();
+}
+async function signUp() {
+  const email    = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const { error } = await sb.auth.signUp({ email, password });
+  if (error) showAuthMsg(error.message);
+  else showAuthMsg('가입 완료! 이메일을 확인해주세요.');
+}
+function showAuthMsg(msg) {
+  const el = document.getElementById('authMsg');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function onLogin(user) {
+  state.user = user;
+  document.getElementById('loginBtn').textContent = user.email.split('@')[0];
+}
+function onLogout() {
+  state.user = null;
+  document.getElementById('loginBtn').textContent = '로그인';
+}
+
+// -----------------------------------------------
+// 칼로리 자동 계산
+// -----------------------------------------------
+function updateCalorie() {
+  const weight   = parseFloat(document.getElementById('catWeight').value);
+  const birthStr = document.getElementById('catBirth').value;
+  if (!weight || !birthStr) return;
+
+  const today    = new Date();
+  const birth    = new Date(birthStr);
+  const months   = (today.getFullYear() - birth.getFullYear()) * 12
+                 + (today.getMonth() - birth.getMonth());
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+
+  const RER = 70 * Math.pow(weight, 0.75);
+  let f_age, label;
+
+  if      (months < 4)   { f_age = 2.75; label = '초기 성장기'; }
+  else if (months < 9)   { f_age = 2.1;  label = '중기 성장기'; }
+  else if (months < 12)  { f_age = 1.9;  label = '후기 성장기'; }
+  else if (months >= 132){ f_age = 1.1;  label = '노령묘'; }
+  else                   { f_age = neutered ? 1.2 : 1.4;
+                           label = neutered ? '중성화 성묘' : '비중성화 성묘'; }
+
+  const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
+  const f_diet   = diet ? 0.9 : 1.0;
+  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
+
+  document.getElementById('derVal').textContent = DER;
+  let detail = `RER ${Math.round(RER)} × ${f_age} (${label})`;
+  if (f_neuter < 1) detail += ` × ${f_neuter} (중성화)`;
+  if (f_diet < 1)   detail += ` × ${f_diet} (다이어트)`;
+  document.getElementById('derDetail').textContent = detail;
+  document.getElementById('calBox').classList.remove('hidden');
+}
+
+// -----------------------------------------------
 // 비율 슬라이더
-function updateMainRatio(v) {
-    document.getElementById('dryTotalText').innerText = 100 - v;
-    document.getElementById('wetTotalText').innerText = v;
+// -----------------------------------------------
+function updateRatio(v) {
+  document.getElementById('dryPct').textContent = v;
+  document.getElementById('wetPct').textContent = 100 - v;
 }
 
+// -----------------------------------------------
 // 건사료 교체 토글
+// -----------------------------------------------
 function toggleDrySwitching() {
-    const checkbox = document.getElementById('drySwitching');
-    const area2 = document.getElementById('dryArea2');
+  const on   = document.getElementById('drySwitching').checked;
+  const area = document.getElementById('dryArea2');
+  const wrap = document.getElementById('drySwPctWrap1');
 
-    if (checkbox.checked) {
-        area2.classList.remove('hidden');
-        document.getElementById('dryPct1').value = 70;
-        document.getElementById('dryPct2').value = 30;
-    } else {
-        area2.classList.add('hidden');
-        document.getElementById('dryPct1').value = 100;
-        document.getElementById('dryPct2').value = 0;
-        selectedFeeds.dry[1] = null;
-        document.getElementById('dryInput2').value = '';
-    }
+  if (on) {
+    area.classList.remove('hidden');
+    wrap.classList.remove('hidden');
+    wrap.classList.add('flex');
+  } else {
+    area.classList.add('hidden');
+    wrap.classList.remove('flex');
+    wrap.classList.add('hidden');
+    state.dryFeeds[1] = null;
+    document.getElementById('dryInput2').value = '';
+    document.getElementById('drySelected2').classList.add('hidden');
+  }
 }
 
-// 🔥 검색 (핵심)
-async function searchFeed(type, query, resId) {
-    const container = document.getElementById(resId);
+// -----------------------------------------------
+// 습식사료 슬롯 추가
+// -----------------------------------------------
+function addWetSlot() {
+  if (state.wetSlotCount >= 3) return;
+  const i   = state.wetSlotCount;
+  const idx = i; // 0-indexed: 0,1,2
 
-    if (!query || query.length < 2) {
-        container.innerHTML = '';
-        return;
-    }
+  const slot = document.createElement('div');
+  slot.id    = `wetSlot${i}`;
+  slot.className = 'relative';
+  slot.innerHTML = `
+    <div class="flex items-center bg-blue-50 rounded-2xl border border-blue-100 overflow-hidden">
+      <input type="text" id="wetInput${i}" placeholder="습식사료 검색..."
+        oninput="searchFeed('wet',this.value,'wetList${i}',${idx})"
+        onfocus="searchFeed('wet',this.value,'wetList${i}',${idx})"
+        class="flex-1 p-4 bg-transparent font-bold text-sm">
+      ${i > 0 ? `
+      <div class="flex items-center bg-blue-100 px-3 h-14">
+        <input type="number" id="wetPctInput${i}" value="${Math.floor(100/(i+1))}" min="0" max="100"
+          class="w-10 bg-transparent text-center font-black text-blue-600 text-sm">
+        <span class="text-xs font-black text-blue-400">%</span>
+      </div>
+      <button onclick="removeWetSlot(${i})" class="px-3 h-14 bg-blue-100 text-blue-300 font-black text-lg">✕</button>
+      ` : ''}
+    </div>
+    <div id="wetList${i}"
+      class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
+    </div>
+    <p id="wetSelected${i}" class="text-xs text-blue-400 font-bold mt-1 px-1 hidden"></p>
+  `;
+  document.getElementById('wetSlots').appendChild(slot);
+  state.wetSlotCount++;
 
-    const { data, error } = await _supabase
-        .from('feeds')
-        .select('product_name, final_me')
-        .ilike('product_name', `%${query}%`)
-        .limit(5);
-
-    console.log('data:', data);
-    console.log('error:', error);
-
-    if (error) {
-        container.innerHTML = `<div class="p-3 text-red-500 text-xs">${error.message}</div>`;
-        return;
-    }
-
-    if (!data || data.length === 0) {
-        container.innerHTML = `<div class="p-3 text-gray-400 text-xs">검색 결과 없음</div>`;
-        return;
-    }
-
-    container.innerHTML = data.map(f => {
-        const name = f.product_name || '이름없음';
-        const kcal = f.final_me || 0;
-
-        return `
-        <div onclick="selectFeed('${type}', '${resId}', '${name}', ${kcal})"
-             class="p-4 border-b cursor-pointer hover:bg-gray-50 text-sm">
-            ${name}
-            <div class="text-[10px] text-gray-400">${kcal} kcal/kg</div>
-        </div>`;
-    }).join('');
+  if (state.wetSlotCount >= 3) {
+    document.getElementById('addWetBtn').classList.add('hidden');
+  }
 }
 
-// 사료 선택
-function selectFeed(type, resId, name, kcal) {
-    const match = resId.match(/\d+/);
-    if (!match) return;
-
-    const idx = parseInt(match[0]) - 1;
-    const inputId = type === 'dry' ? 'dryInput' + (idx + 1) : 'wetInput' + (idx + 1);
-
-    const input = document.getElementById(inputId);
-    if (input) input.value = name;
-
-    document.getElementById(resId).innerHTML = '';
-    selectedFeeds[type][idx] = { name, kcal };
+function removeWetSlot(i) {
+  document.getElementById(`wetSlot${i}`).remove();
+  state.wetFeeds[i] = null;
+  state.wetSlotCount--;
+  document.getElementById('addWetBtn').classList.remove('hidden');
 }
 
-// 계산
+// -----------------------------------------------
+// 사료 검색 (Supabase 직접 조회)
+// -----------------------------------------------
+async function searchFeed(type, query, listId, slotIdx) {
+  const list = document.getElementById(listId);
+
+  if (!query || query.length < 1) {
+    list.classList.add('hidden');
+    return;
+  }
+
+  // Supabase에서 직접 조회 — verified=true인 사료만
+  const { data, error } = await sb
+    .from('feeds')
+    .select('제품명, 제조사, final_me, eb_칼슘, eb_인')
+    .eq('type', type)
+    .eq('verified', true)
+    .gt('final_me', 0)
+    .ilike('제품명', `%${query}%`)
+    .limit(10);
+
+  if (error) {
+    list.innerHTML = `<div class="p-3 text-red-400 text-xs">${error.message}</div>`;
+    list.classList.remove('hidden');
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    list.innerHTML = `<div class="p-4 text-gray-400 text-xs text-center">검색 결과가 없습니다</div>`;
+    list.classList.remove('hidden');
+    return;
+  }
+
+  list.innerHTML = data.map(f => {
+    const display = f.제조사 ? `${f.제조사} | ${f.제품명}` : f.제품명;
+    return `
+      <div class="autocomplete-item p-4 border-b border-gray-50 cursor-pointer"
+        onclick="selectFeed('${type}',${slotIdx},'${f.제품명}','${display}',${f.final_me},${f.eb_칼슘||0},${f.eb_인||0},'${listId}')">
+        <p class="font-bold text-sm text-gray-800">${display}</p>
+        <p class="text-xs text-gray-400 mt-0.5">${f.final_me} kcal/kg</p>
+      </div>`;
+  }).join('');
+
+  list.classList.remove('hidden');
+}
+
+// -----------------------------------------------
+// 사료 선택 확정
+// -----------------------------------------------
+function selectFeed(type, idx, name, display, kcal, ebCa, ebP, listId) {
+  // 상태 저장
+  if (type === 'dry') {
+    state.dryFeeds[idx] = { name, kcal, ebCa, ebP };
+    document.getElementById(`dryInput${idx+1}`).value = display;
+    const sel = document.getElementById(`drySelected${idx+1}`);
+    sel.textContent = `✓ ${name} (${kcal} kcal/kg)`;
+    sel.classList.remove('hidden');
+  } else {
+    state.wetFeeds[idx] = { name, kcal, ebCa, ebP };
+    document.getElementById(`wetInput${idx}`).value = display;
+    const sel = document.getElementById(`wetSelected${idx}`);
+    sel.textContent = `✓ ${name} (${kcal} kcal/kg)`;
+    sel.classList.remove('hidden');
+  }
+
+  // 검색 목록 닫기
+  document.getElementById(listId).classList.add('hidden');
+}
+
+// 외부 클릭 시 검색 목록 닫기
+document.addEventListener('click', e => {
+  if (!e.target.closest('.relative')) {
+    document.querySelectorAll('[id^="dryList"],[id^="wetList"]')
+      .forEach(el => el.classList.add('hidden'));
+  }
+});
+
+// -----------------------------------------------
+// 급여량 계산
+// -----------------------------------------------
 function calculate() {
-    const weight = parseFloat(document.getElementById('catWeight').value);
-    const birthStr = document.getElementById('catBirth').value;
+  const weight   = parseFloat(document.getElementById('catWeight').value);
+  const birthStr = document.getElementById('catBirth').value;
 
-    if (!weight || !birthStr) {
-        alert("체중과 생년월일을 입력해주세요.");
-        return;
-    }
+  if (!weight || !birthStr) {
+    alert('체중과 생년월일을 입력해주세요.');
+    return;
+  }
 
-    const birth = new Date(birthStr);
-    const today = new Date();
-    const ageMonths =
-        (today.getFullYear() - birth.getFullYear()) * 12 +
-        (today.getMonth() - birth.getMonth());
+  const today    = new Date();
+  const birth    = new Date(birthStr);
+  const months   = (today.getFullYear() - birth.getFullYear()) * 12
+                 + (today.getMonth() - birth.getMonth());
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+  const RER      = 70 * Math.pow(weight, 0.75);
 
-    const RER = 70 * Math.pow(weight, 0.75);
+  let f_age;
+  if      (months < 4)   f_age = 2.75;
+  else if (months < 9)   f_age = 2.1;
+  else if (months < 12)  f_age = 1.9;
+  else if (months >= 132)f_age = 1.1;
+  else                   f_age = neutered ? 1.2 : 1.4;
 
-    let factor = 1.2;
-    if (ageMonths < 4) factor = 2.75;
-    else if (ageMonths < 9) factor = 2.1;
-    else if (ageMonths < 12) factor = 1.9;
-    else if (ageMonths >= 132) factor = 1.1;
-    else factor = document.getElementById('catNeutered').value === 'true' ? 1.2 : 1.4;
+  const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
+  const f_diet   = diet ? 0.9 : 1.0;
+  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
 
-    if (document.getElementById('isDiet').checked) factor *= 0.9;
+  const dryRatio = parseInt(document.getElementById('dryPct').textContent) / 100;
+  const wetRatio = parseInt(document.getElementById('wetPct').textContent) / 100;
+  const switching = document.getElementById('drySwitching').checked;
 
-    const DER = RER * factor;
+  let html = '';
+  let resultData = { 건사료_결과: [], 습식사료_결과: [] };
 
-    const dryTotalRatio = parseInt(document.getElementById('dryTotalText').innerText) / 100;
-    const wetTotalRatio = parseInt(document.getElementById('wetTotalText').innerText) / 100;
+  // 건사료 계산
+  const dryFeeds = switching
+    ? state.dryFeeds.filter(Boolean)
+    : [state.dryFeeds[0]].filter(Boolean);
 
-    let html = "";
+  const totalDrySubPct = switching
+    ? dryFeeds.reduce((sum, _, i) => {
+        const el = document.getElementById(`drySwPct${i+1}`);
+        return sum + (el ? parseInt(el.value)||0 : 0);
+      }, 0)
+    : 100;
 
-    // 건사료
-    selectedFeeds.dry.forEach((f, i) => {
-        if (!f || !f.kcal) return;
-
-        const input = document.getElementById('dryPct' + (i + 1));
-        if (!input) return;
-
-        const subRatio = parseInt(input.value) / 100;
-
-        const kcalPerGram = f.kcal / 1000; // kcal/kg → g 변환
-        const grams = (DER * dryTotalRatio * subRatio) / kcalPerGram;
-
-        html += `
-        <div class="flex justify-between bg-gray-800 p-4 rounded-xl mb-2">
-            <span class="text-orange-400">${f.name}</span>
-            <span>${Math.round(grams)}g</span>
-        </div>`;
-    });
-
-    // 습식
-    selectedFeeds.wet.forEach((f, i) => {
-        if (!f || !f.kcal) return;
-
-        const input = document.getElementById('wetPct' + (i + 1));
-        if (!input) return;
-
-        const subRatio = parseInt(input.value) / 100;
-
-        const kcalPerGram = f.kcal / 1000;
-        const grams = (DER * wetTotalRatio * subRatio) / kcalPerGram;
-
-        html += `
-        <div class="flex justify-between bg-gray-800 p-4 rounded-xl mb-2">
-            <span class="text-blue-400">${f.name}</span>
-            <span>${Math.round(grams)}g</span>
-        </div>`;
-    });
-
-    document.getElementById('resDER').innerHTML =
-        Math.round(DER) + ' <span class="text-sm text-gray-400">kcal</span>';
-
-    document.getElementById('resDetails').innerHTML =
-        html || '<p class="text-center text-gray-400">사료를 선택하세요</p>';
-
-    document.getElementById('resultArea').classList.remove('hidden');
-}
-</script>
-</body>
-</html>
+  dryFeeds.forEach((f, i) => {
+    const subPct = switching
+      ? (parseInt(document.getElementById(`drySw
