@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProvedCat - 고양이 영양 설계</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    :root { --brand:#2d7dd2; --dry:#f4a44a; --wet:#4a9af4; --green:#5a9e6f; }
+    body { font-size:16px; background:#f3f4f6; word-break:keep-all; font-family:-apple-system,sans-serif; }
+    input,select { outline:none; }
+    input[type=range] { -webkit-appearance:none; background:#e5e7eb; height:8px; border-radius:4px; width:100%; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; background:var(--brand); border-radius:50%; cursor:pointer; border:4px solid white; box-shadow:0 2px 4px rgba(0,0,0,.15); }
+    .autocomplete-item:hover { background:#f0f7ff; }
+    .search-wrapper { position: relative; }
+    .dropdown-list {
+      position: absolute;
+      left: 0; right: 0;
+      top: calc(100% + 4px);
+      z-index: 9999;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.12);
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+    }
+    .dropdown-list.show { display: block; }
+
+    /* 소셜 로그인 탭 */
+    .auth-tab { transition: all .2s; }
+    .auth-tab.active { background:#2d7dd2; color:white; }
+    .auth-tab:not(.active) { background:#f3f4f6; color:#6b7280; }
+
+    /* 로그인 혜택 배너 */
+    .benefit-banner { background: linear-gradient(135deg,#2d7dd2 0%,#1a5fa8 100%); }
+    .benefit-item { background: rgba(255,255,255,.12); backdrop-filter: blur(4px); }
+
+    /* 카카오 버튼 */
+    .kakao-btn { background:#FEE500; color:#191919; }
+    /* 구글 버튼 */
+    .google-btn { background:white; color:#333; border:1px solid #e5e7eb; }
+
+    /* 슬라이딩 애니메이션 */
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .slide-up { animation: slideUp .3s ease forwards; }
+  </style>
+</head>
+<body class="flex justify-center">
+<div class="w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
+
+  <!-- 헤더 -->
+  <header class="px-6 pt-10 pb-4 flex justify-between items-center">
+    <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
+    <button id="loginBtn" onclick="toggleAuth()"
+      class="text-xs font-bold text-gray-400 border border-gray-200 rounded-xl px-3 py-2 flex items-center gap-1">
+      <span>🐾</span> <span id="loginBtnText">로그인</span>
+    </button>
+  </header>
+
+  <!-- 로그인 유도 배너 (비로그인 시) -->
+  <div id="loginBanner" class="mx-6 mb-2 benefit-banner rounded-3xl p-5 text-white slide-up">
+    <p class="text-xs font-black uppercase tracking-widest opacity-70 mb-2">로그인하면 더 많은 기능을!</p>
+    <div class="grid grid-cols-2 gap-2">
+      <div class="benefit-item rounded-2xl px-3 py-2.5">
+        <p class="text-lg mb-0.5">📈</p>
+        <p class="text-xs font-black leading-tight">주인님, 몸무게<br>추이 확인해요</p>
+      </div>
+      <div class="benefit-item rounded-2xl px-3 py-2.5">
+        <p class="text-lg mb-0.5">💾</p>
+        <p class="text-xs font-black leading-tight">고양이 프로필<br>저장 & 불러오기</p>
+      </div>
+      <div class="benefit-item rounded-2xl px-3 py-2.5">
+        <p class="text-lg mb-0.5">📋</p>
+        <p class="text-xs font-black leading-tight">급여 기록<br>자동 저장</p>
+      </div>
+      <div class="benefit-item rounded-2xl px-3 py-2.5">
+        <p class="text-lg mb-0.5">🔔</p>
+        <p class="text-xs font-black leading-tight">체중 변화<br>알림 서비스</p>
+      </div>
+    </div>
+    <button onclick="toggleAuth()" class="mt-3 w-full py-2.5 bg-white text-[#2d7dd2] font-black text-sm rounded-2xl">
+      1초 만에 시작하기 →
+    </button>
+  </div>
+
+  <!-- 로그인 모달 -->
+  <div id="authModal" class="hidden fixed inset-0 bg-black/50 z-[9998] flex items-end justify-center sm:items-center p-0 sm:p-6">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl p-8 w-full max-w-sm space-y-4 slide-up">
+      <div class="flex justify-center mb-2">
+        <div class="w-10 h-1 bg-gray-200 rounded-full sm:hidden"></div>
+      </div>
+      <h3 class="font-black text-xl text-center">환영해요 🐱</h3>
+
+      <!-- 탭: 이메일 / 소셜 -->
+      <div class="flex gap-2 p-1 bg-gray-100 rounded-2xl">
+        <button id="tabEmail" onclick="switchAuthTab('email')"
+          class="auth-tab active flex-1 py-2.5 rounded-xl text-sm font-black">
+          이메일
+        </button>
+        <button id="tabSocial" onclick="switchAuthTab('social')"
+          class="auth-tab flex-1 py-2.5 rounded-xl text-sm font-black">
+          소셜 로그인
+        </button>
+      </div>
+
+      <!-- 이메일 폼 -->
+      <div id="emailForm" class="space-y-3">
+        <input type="email" id="authEmail" placeholder="이메일"
+          class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+        <input type="password" id="authPassword" placeholder="비밀번호"
+          class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+        <button onclick="signIn()"
+          class="w-full py-4 bg-[#2d7dd2] text-white font-black rounded-2xl">로그인</button>
+        <button onclick="signUp()"
+          class="w-full py-4 bg-gray-100 text-gray-600 font-black rounded-2xl">처음이에요 (회원가입)</button>
+      </div>
+
+      <!-- 소셜 로그인 폼 -->
+      <div id="socialForm" class="hidden space-y-3">
+        <button onclick="signInKakao()"
+          class="kakao-btn w-full py-4 font-black rounded-2xl flex items-center justify-center gap-3">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.65 5.075 4.125 6.525L5.1 21l5.025-2.7C10.7 18.45 11.35 18.525 12 18.525c5.523 0 10-3.477 10-7.725S17.523 3 12 3z"/>
+          </svg>
+          카카오로 시작하기
+        </button>
+        <button onclick="signInGoogle()"
+          class="google-btn w-full py-4 font-black rounded-2xl flex items-center justify-center gap-3">
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Google로 시작하기
+        </button>
+        <p class="text-center text-xs text-gray-300 pt-1">
+          소셜 계정으로 간편하게 시작해요
+        </p>
+      </div>
+
+      <p id="authMsg" class="text-center text-xs text-red-400 hidden"></p>
+      <button onclick="closeAuth()" class="w-full text-center text-xs text-gray-300 pt-2">닫기</button>
+    </div>
+  </div>
+
+  <main class="px-6 pb-28 space-y-10">
+
+    <!-- 1단계: 고양이 정보 -->
+    <section class="space-y-4">
+      <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
+      <div class="flex gap-3">
+        <input type="text" id="catName" placeholder="고양이 이름"
+          class="flex-1 p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
+        <div class="relative w-32">
+          <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
+            class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <input type="date" id="catBirth"
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+        <select id="catNeutered"
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+          <option value="true">중성화 O</option>
+          <option value="false">중성화 X</option>
+        </select>
+      </div>
+      <label class="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl cursor-pointer border border-gray-100">
+        <input type="checkbox" id="isDiet" class="w-5 h-5 accent-[#2d7dd2]">
+        <div>
+          <p class="font-bold text-sm text-gray-700">다이어트 모드</p>
+          <p class="text-xs text-gray-400">계산값에서 10% 추가 차감</p>
+        </div>
+      </label>
+
+      <!-- 칼로리 표시 -->
+      <div id="calBox" class="hidden p-6 bg-blue-50 rounded-2xl text-center">
+        <p class="text-xs font-bold text-blue-400 mb-1">하루 필요 칼로리</p>
+        <p class="text-4xl font-black text-[#2d7dd2]" id="derVal">0</p>
+        <p class="text-xs text-gray-400 mt-1" id="derDetail"></p>
+      </div>
+    </section>
+
+    <!-- 2단계: 식단 구성 -->
+    <section class="space-y-6">
+      <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
+
+      <!-- 건/습 비율 슬라이더 -->
+      <div class="p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
+        <div class="flex justify-between items-center font-black">
+          <div>
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">DRY</p>
+            <p class="text-2xl text-[#f4a44a]"><span id="dryPct">30</span><span class="text-sm">%</span></p>
+          </div>
+          <div class="text-gray-200 text-xl">:</div>
+          <div class="text-right">
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">WET</p>
+            <p class="text-2xl text-[#4a9af4]"><span id="wetPct">70</span><span class="text-sm">%</span></p>
+          </div>
+        </div>
+        <input type="range" id="ratioSlider" min="0" max="100" value="30"
+          oninput="updateRatio(this.value)">
+        <div class="flex justify-between text-[10px] text-gray-300 font-bold">
+          <span>← 습식 100%</span><span>건사료 100% →</span>
+        </div>
+      </div>
+
+      <!-- 건사료 검색 -->
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()"
+              class="w-4 h-4 accent-[#f4a44a]">
+            <span class="text-xs font-bold text-gray-400">교체 중</span>
+          </label>
+        </div>
+
+        <!-- 건사료 1 -->
+        <div class="search-wrapper">
+          <div class="flex items-center bg-orange-50 rounded-2xl border border-orange-100 overflow-visible">
+            <input type="text" id="dryInput1" placeholder="건사료 검색..."
+              autocomplete="off"
+              class="flex-1 p-4 bg-transparent font-bold text-sm rounded-2xl"
+              oninput="searchFeed('dry',this.value,'dryList1',0)"
+              onfocus="searchFeed('dry',this.value,'dryList1',0)">
+            <div id="drySwPctWrap1" class="hidden items-center bg-orange-100 px-3 h-14 rounded-r-2xl">
+              <input type="number" id="drySwPct1" value="70" min="0" max="100"
+                class="w-10 bg-transparent text-center font-black text-orange-600 text-sm">
+              <span class="text-xs font-black text-orange-400">%</span>
+            </div>
+          </div>
+          <div id="dryList1" class="dropdown-list"></div>
+          <p id="drySelected1" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
+        </div>
+
+        <!-- 건사료 2 (교체 중일 때) -->
+        <div id="dryArea2" class="hidden search-wrapper">
+          <div class="flex items-center bg-orange-50 rounded-2xl border border-dashed border-orange-200 overflow-visible">
+            <input type="text" id="dryInput2" placeholder="새 건사료 검색..."
+              autocomplete="off"
+              class="flex-1 p-4 bg-transparent font-bold text-sm rounded-2xl"
+              oninput="searchFeed('dry',this.value,'dryList2',1)"
+              onfocus="searchFeed('dry',this.value,'dryList2',1)">
+            <div class="flex items-center bg-orange-100 px-3 h-14 rounded-r-2xl">
+              <input type="number" id="drySwPct2" value="30" min="0" max="100"
+                class="w-10 bg-transparent text-center font-black text-orange-600 text-sm">
+              <span class="text-xs font-black text-orange-400">%</span>
+            </div>
+          </div>
+          <div id="dryList2" class="dropdown-list"></div>
+          <p id="drySelected2" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
+        </div>
+      </div>
+
+      <!-- 습식사료 검색 -->
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-black text-[#4a9af4] tracking-widest italic">WET FOOD</p>
+          <button onclick="addWetSlot()" id="addWetBtn"
+            class="text-xs font-bold text-blue-400 border border-blue-200 rounded-xl px-3 py-1">
+            + 추가 (최대 3개)
+          </button>
+        </div>
+        <div id="wetSlots" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- 계산 버튼 -->
+    <button onclick="calculate()"
+      class="w-full py-5 bg-[#2d7dd2] text-white font-black text-lg rounded-3xl shadow-lg">
+      급여량 계산하기
+    </button>
+
+    <!-- 결과 -->
+    <div id="resultArea" class="hidden space-y-4">
+      <div class="p-6 bg-gray-900 rounded-3xl text-white text-center">
+        <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Daily Feeding Plan</p>
+        <p class="text-5xl font-black text-white" id="resDER">0</p>
+        <p class="text-xs text-gray-400 mt-1">kcal / day</p>
+      </div>
+      <div id="resItems" class="space-y-2"></div>
+      <p class="text-xs text-gray-300 text-center leading-relaxed">
+        ※ 참고용 계산값입니다. 질환이 있는 경우 수의사와 상담하세요.
+      </p>
+
+      <!-- 결과 하단 로그인 유도 (비로그인 시) -->
+      <div id="saveNudge" class="hidden p-5 bg-blue-50 border border-blue-100 rounded-3xl text-center space-y-2">
+        <p class="text-sm font-black text-gray-700">📋 이 결과를 저장하고 싶다면?</p>
+        <p class="text-xs text-gray-400">로그인하면 급여 기록이 자동으로 저장돼요</p>
+        <button onclick="toggleAuth()" class="py-3 px-6 bg-[#2d7dd2] text-white font-black text-sm rounded-2xl">
+          로그인 / 회원가입
+        </button>
+      </div>
+    </div>
+
+    <!-- 칼슘/인 분석 버튼 -->
+    <button id="capBtn" onclick="analyzeCaP()" class="hidden w-full py-5 bg-[#5a9e6f] text-white font-black text-lg rounded-3xl shadow-lg">
+      📊 칼슘 · 인 분석하기
+    </button>
+
+    <!-- 칼슘/인 결과 -->
+    <div id="capResult" class="hidden space-y-3"></div>
+
+    <!-- 사료 추가 업로드 -->
+    <section class="space-y-4 pt-4 border-t border-gray-100">
+      <h2 class="text-lg font-black text-gray-700">사료가 없나요?</h2>
+      <p class="text-xs text-gray-400 leading-relaxed">
+        영양성분표가 모두 보이는 사진 <strong>1장</strong>을 올려주세요.<br>
+        앞면·뒷면 등 여러 장이 필요한 경우 각각 업로드해주세요.
+      </p>
+      <div class="flex gap-2">
+        <button onclick="setUploadType('dry')" id="upDryBtn"
+          class="flex-1 py-3 rounded-2xl text-sm font-black border-2 border-[#f4a44a] text-[#f4a44a]">
+          건사료 추가
+        </button>
+        <button onclick="setUploadType('wet')" id="upWetBtn"
+          class="flex-1 py-3 rounded-2xl text-sm font-black border border-gray-200 text-gray-400">
+          습식사료 추가
+        </button>
+      </div>
+      <label class="block w-full">
+        <div class="w-full py-6 border-2 border-dashed border-gray-200 rounded-2xl text-center cursor-pointer hover:border-[#2d7dd2] transition-colors">
+          <p class="text-2xl mb-1">📷</p>
+          <p class="text-sm font-bold text-gray-400">사진을 선택하세요</p>
+          <p class="text-xs text-gray-300 mt-1">JPG, PNG · 최대 5장 · 10MB 이하</p>
+        </div>
+        <input type="file" id="uploadInput" accept="image/*" multiple class="hidden"
+          onchange="handleUpload(this)">
+      </label>
+      <div id="uploadMsg"></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// -----------------------------------------------
+// ⚙️ 설정
+// -----------------------------------------------
+const SUPABASE_URL  = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2x2dGduaHJkbXp4emxzdHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NjE1MjIsImV4cCI6MjA5MTUzNzUyMn0.6nI4uEp9H9gVn3Sjm4Qhs5XXFvhUhfGBf6e0Nqce1EM';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwHbg3UvqnWyP39rtNTmG8DmHKvj4PRU50rUeL5ebif4Knn2TYrgSzkv5fDgjhRgb5dEg/exec';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// -----------------------------------------------
+// 전역 상태
+// -----------------------------------------------
+let state = {
+  dryFeeds:    [null, null],
+  wetFeeds:    [null, null, null],
+  wetSlotCount: 0,
+  uploadType:  'dry',
+  lastResult:  null,
+  user:        null
+};
+
+// -----------------------------------------------
+// 앱 시작
+// -----------------------------------------------
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) onLogin(session.user);
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) onLogin(session.user);
+    else onLogout();
+  });
+
+  // 첫 번째 습식사료 슬롯 생성
+  addWetSlot();
+
+  ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('change', updateCalorie);
+    if (id === 'catWeight') el.addEventListener('input', updateCalorie);
+  });
+
+  // 전역 클릭 → 드롭다운 닫기
+  document.addEventListener('click', (e) => {
+    // search-wrapper 바깥 클릭 시 모든 드롭다운 닫기
+    if (!e.target.closest('.search-wrapper')) {
+      closeAllDropdowns();
+    }
+  });
+});
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-list').forEach(el => el.classList.remove('show'));
+}
+
+// -----------------------------------------------
+// 인증
+// -----------------------------------------------
+function toggleAuth() {
+  const modal = document.getElementById('authModal');
+  modal.classList.toggle('hidden');
+}
+function closeAuth() {
+  document.getElementById('authModal').classList.add('hidden');
+}
+
+function switchAuthTab(tab) {
+  const emailForm  = document.getElementById('emailForm');
+  const socialForm = document.getElementById('socialForm');
+  const tabEmail   = document.getElementById('tabEmail');
+  const tabSocial  = document.getElementById('tabSocial');
+
+  if (tab === 'email') {
+    emailForm.classList.remove('hidden');
+    socialForm.classList.add('hidden');
+    tabEmail.classList.add('active');
+    tabSocial.classList.remove('active');
+  } else {
+    emailForm.classList.add('hidden');
+    socialForm.classList.remove('hidden');
+    tabEmail.classList.remove('active');
+    tabSocial.classList.add('active');
+  }
+}
+
+async function signIn() {
+  const email    = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) showAuthMsg(error.message);
+  else closeAuth();
+}
+
+async function signUp() {
+  const email    = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const { error } = await sb.auth.signUp({ email, password });
+  if (error) showAuthMsg(error.message);
+  else showAuthMsg('가입 완료! 이메일을 확인해주세요.');
+}
+
+async function signInKakao() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'kakao',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) showAuthMsg(error.message);
+}
+
+async function signInGoogle() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) showAuthMsg(error.message);
+}
+
+function showAuthMsg(msg) {
+  const el = document.getElementById('authMsg');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function onLogin(user) {
+  state.user = user;
+  const name = user.user_metadata?.name || user.email?.split('@')[0] || '집사';
+  document.getElementById('loginBtnText').textContent = name;
+  // 배너 숨기기
+  document.getElementById('loginBanner').classList.add('hidden');
+}
+
+function onLogout() {
+  state.user = null;
+  document.getElementById('loginBtnText').textContent = '로그인';
+  document.getElementById('loginBanner').classList.remove('hidden');
+}
+
+// -----------------------------------------------
+// 칼로리 자동 계산
+// -----------------------------------------------
+function updateCalorie() {
+  const weight   = parseFloat(document.getElementById('catWeight').value);
+  const birthStr = document.getElementById('catBirth').value;
+  if (!weight || !birthStr) return;
+
+  const today    = new Date();
+  const birth    = new Date(birthStr);
+  const months   = (today.getFullYear() - birth.getFullYear()) * 12
+                 + (today.getMonth() - birth.getMonth());
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+
+  const RER = 70 * Math.pow(weight, 0.75);
+  let f_age, label;
+
+  if      (months < 4)   { f_age = 2.75; label = '초기 성장기'; }
+  else if (months < 9)   { f_age = 2.1;  label = '중기 성장기'; }
+  else if (months < 12)  { f_age = 1.9;  label = '후기 성장기'; }
+  else if (months >= 132){ f_age = 1.1;  label = '노령묘'; }
+  else                   { f_age = neutered ? 1.2 : 1.4;
+                           label = neutered ? '중성화 성묘' : '비중성화 성묘'; }
+
+  const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
+  const f_diet   = diet ? 0.9 : 1.0;
+  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
+
+  document.getElementById('derVal').textContent = DER;
+  let detail = `RER ${Math.round(RER)} × ${f_age} (${label})`;
+  if (f_neuter < 1) detail += ` × ${f_neuter} (중성화)`;
+  if (f_diet < 1)   detail += ` × ${f_diet} (다이어트)`;
+  document.getElementById('derDetail').textContent = detail;
+  document.getElementById('calBox').classList.remove('hidden');
+}
+
+// -----------------------------------------------
+// 비율 슬라이더
+// -----------------------------------------------
+function updateRatio(v) {
+  document.getElementById('dryPct').textContent = v;
+  document.getElementById('wetPct').textContent = 100 - v;
+}
+
+// -----------------------------------------------
+// 건사료 교체 토글
+// -----------------------------------------------
+function toggleDrySwitching() {
+  const on   = document.getElementById('drySwitching').checked;
+  const area = document.getElementById('dryArea2');
+  const wrap = document.getElementById('drySwPctWrap1');
+
+  if (on) {
+    area.classList.remove('hidden');
+    wrap.classList.remove('hidden');
+    wrap.classList.add('flex');
+  } else {
+    area.classList.add('hidden');
+    wrap.classList.remove('flex');
+    wrap.classList.add('hidden');
+    state.dryFeeds[1] = null;
+    document.getElementById('dryInput2').value = '';
+    document.getElementById('drySelected2').classList.add('hidden');
+  }
+}
+
+// -----------------------------------------------
+// 습식사료 슬롯 추가 (최대 3개)
+// -----------------------------------------------
+function addWetSlot() {
+  if (state.wetSlotCount >= 3) return;
+
+  const slotIdx = state.wetSlotCount; // 0, 1, 2
+  const domId   = slotIdx;            // DOM id suffix 동일하게 사용
+
+  const slot = document.createElement('div');
+  slot.id    = `wetSlot${slotIdx}`;
+  slot.className = 'search-wrapper';
+
+  slot.innerHTML = `
+    <div class="flex items-center bg-blue-50 rounded-2xl border border-blue-100 overflow-visible">
+      <input type="text" id="wetInput${slotIdx}" placeholder="습식사료 검색..."
+        autocomplete="off"
+        class="flex-1 p-4 bg-transparent font-bold text-sm rounded-l-2xl"
+        oninput="searchFeed('wet',this.value,'wetList${slotIdx}',${slotIdx})"
+        onfocus="searchFeed('wet',this.value,'wetList${slotIdx}',${slotIdx})">
+      ${slotIdx > 0 ? `
+      <div class="flex items-center bg-blue-100 px-3 h-14">
+        <input type="number" id="wetPctInput${slotIdx}" value="${Math.floor(100/(slotIdx+1))}" min="0" max="100"
+          class="w-10 bg-transparent text-center font-black text-blue-600 text-sm">
+        <span class="text-xs font-black text-blue-400">%</span>
+      </div>
+      <button onclick="removeWetSlot(${slotIdx})" class="px-3 h-14 bg-blue-100 text-blue-300 font-black text-lg rounded-r-2xl">✕</button>
+      ` : `<div class="w-2"></div>`}
+    </div>
+    <div id="wetList${slotIdx}" class="dropdown-list"></div>
+    <p id="wetSelected${slotIdx}" class="text-xs text-blue-400 font-bold mt-1 px-1 hidden"></p>
+  `;
+
+  document.getElementById('wetSlots').appendChild(slot);
+  state.wetSlotCount++;
+
+  if (state.wetSlotCount >= 3) {
+    document.getElementById('addWetBtn').classList.add('opacity-40', 'pointer-events-none');
+    document.getElementById('addWetBtn').textContent = '최대 3개';
+  }
+}
+
+function removeWetSlot(slotIdx) {
+  const el = document.getElementById(`wetSlot${slotIdx}`);
+  if (el) el.remove();
+  state.wetFeeds[slotIdx] = null;
+  state.wetSlotCount--;
+  document.getElementById('addWetBtn').classList.remove('opacity-40', 'pointer-events-none');
+  document.getElementById('addWetBtn').textContent = '+ 추가 (최대 3개)';
+}
+
+// -----------------------------------------------
+// 사료 검색 (Supabase 직접 조회)
+// -----------------------------------------------
+async function searchFeed(type, query, listId, slotIdx) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+
+  if (!query || query.trim().length < 1) {
+    list.classList.remove('show');
+    return;
+  }
+
+  list.innerHTML = `<div class="p-4 text-gray-400 text-xs text-center">검색 중...</div>`;
+  list.classList.add('show');
+
+  try {
+    const { data, error } = await sb
+      .from('feeds')
+      .select('제품명, 제조사, final_me, eb_칼슘, eb_인')
+      .eq('type', type)
+      .eq('verified', true)
+      .gt('final_me', 0)
+      .ilike('제품명', `%${query.trim()}%`)
+      .limit(10);
+
+    if (error) {
+      list.innerHTML = `<div class="p-3 text-red-400 text-xs">${error.message}</div>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      list.innerHTML = `<div class="p-4 text-gray-400 text-xs text-center">검색 결과가 없습니다</div>`;
+      return;
+    }
+
+    list.innerHTML = data.map(f => {
+      const display  = f.제조사 ? `${f.제조사} | ${f.제품명}` : f.제품명;
+      const ca  = f.eb_칼슘 || 0;
+      const ph  = f.eb_인   || 0;
+      // JSON 안전하게 전달하기 위해 data attribute 사용
+      return `
+        <div class="autocomplete-item p-4 border-b border-gray-50 cursor-pointer last:border-0"
+          data-type="${type}"
+          data-slot="${slotIdx}"
+          data-name="${escapeAttr(f.제품명)}"
+          data-display="${escapeAttr(display)}"
+          data-kcal="${f.final_me}"
+          data-ca="${ca}"
+          data-p="${ph}"
+          data-list="${listId}"
+          onmousedown="handleFeedSelect(event)">
+          <p class="font-bold text-sm text-gray-800">${escapeHtml(display)}</p>
+          <p class="text-xs text-gray-400 mt-0.5">${f.final_me} kcal/kg</p>
+        </div>`;
+    }).join('');
+
+  } catch (err) {
+    list.innerHTML = `<div class="p-3 text-red-400 text-xs">오류가 발생했습니다</div>`;
+  }
+}
+
+// XSS 방지 유틸
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeAttr(str) {
+  return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// mousedown 이벤트로 blur보다 먼저 선택 처리
+function handleFeedSelect(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const el = e.currentTarget;
+  selectFeed(
+    el.dataset.type,
+    parseInt(el.dataset.slot),
+    el.dataset.name,
+    el.dataset.display,
+    parseFloat(el.dataset.kcal),
+    parseFloat(el.dataset.ca),
+    parseFloat(el.dataset.p),
+    el.dataset.list
+  );
+}
+
+// -----------------------------------------------
+// 사료 선택 확정
+// -----------------------------------------------
+function selectFeed(type, idx, name, display, kcal, ebCa, ebP, listId) {
+  if (type === 'dry') {
+    state.dryFeeds[idx] = { name, kcal, ebCa, ebP };
+    const inputEl = document.getElementById(`dryInput${idx+1}`);
+    if (inputEl) inputEl.value = display;
+    const sel = document.getElementById(`drySelected${idx+1}`);
+    if (sel) { sel.textContent = `✓ ${name} (${kcal} kcal/kg)`; sel.classList.remove('hidden'); }
+  } else {
+    state.wetFeeds[idx] = { name, kcal, ebCa, ebP };
+    const inputEl = document.getElementById(`wetInput${idx}`);
+    if (inputEl) inputEl.value = display;
+    const sel = document.getElementById(`wetSelected${idx}`);
+    if (sel) { sel.textContent = `✓ ${name} (${kcal} kcal/kg)`; sel.classList.remove('hidden'); }
+  }
+  const list = document.getElementById(listId);
+  if (list) list.classList.remove('show');
+}
+
+// -----------------------------------------------
+// 급여량 계산
+// -----------------------------------------------
+function calculate() {
+  const weight   = parseFloat(document.getElementById('catWeight').value);
+  const birthStr = document.getElementById('catBirth').value;
+
+  if (!weight || !birthStr) {
+    alert('체중과 생년월일을 입력해주세요.');
+    return;
+  }
+
+  const today    = new Date();
+  const birth    = new Date(birthStr);
+  const months   = (today.getFullYear() - birth.getFullYear()) * 12
+                 + (today.getMonth() - birth.getMonth());
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+  const RER      = 70 * Math.pow(weight, 0.75);
+
+  let f_age;
+  if      (months < 4)   f_age = 2.75;
+  else if (months < 9)   f_age = 2.1;
+  else if (months < 12)  f_age = 1.9;
+  else if (months >= 132)f_age = 1.1;
+  else                   f_age = neutered ? 1.2 : 1.4;
+
+  const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
+  const f_diet   = diet ? 0.9 : 1.0;
+  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
+
+  const dryRatio  = parseInt(document.getElementById('dryPct').textContent) / 100;
+  const wetRatio  = parseInt(document.getElementById('wetPct').textContent) / 100;
+  const switching = document.getElementById('drySwitching').checked;
+
+  let html = '';
+  let resultData = { 건사료_결과: [], 습식사료_결과: [] };
+
+  // 건사료 계산
+  const dryFeeds = switching
+    ? state.dryFeeds.filter(Boolean)
+    : [state.dryFeeds[0]].filter(Boolean);
+
+  const totalDrySubPct = switching
+    ? dryFeeds.reduce((sum, _, i) => {
+        const el = document.getElementById(`drySwPct${i+1}`);
+        return sum + (el ? parseInt(el.value)||0 : 0);
+      }, 0)
+    : 100;
+
+  dryFeeds.forEach((f, i) => {
+    const subPct = switching
+      ? (parseInt(document.getElementById(`drySwPct${i+1}`)?.value)||0) / (totalDrySubPct||100)
+      : 1;
+    const kcal  = DER * dryRatio * subPct;
+    const grams = Math.round(kcal / (f.kcal / 1000));
+    html += `
+      <div class="flex justify-between items-center p-4 bg-orange-50 rounded-2xl border border-orange-100">
+        <div>
+          <span class="text-[10px] font-black text-orange-400 uppercase">DRY</span>
+          <p class="font-bold text-sm text-gray-800 mt-0.5">${escapeHtml(f.name)}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-black text-gray-900">${grams}g</p>
+          <p class="text-xs text-gray-400">${Math.round(kcal)} kcal</p>
+        </div>
+      </div>`;
+    resultData.건사료_결과.push({ 이름: f.name, 급여량_g: grams, 담당칼로리: Math.round(kcal), 에너지기준_칼슘: f.ebCa, 에너지기준_인: f.ebP });
+  });
+
+  // 습식사료 계산 — 실제 DOM에 존재하는 슬롯만 수집
+  const wetFeeds = [];
+  for (let i = 0; i < 3; i++) {
+    const slotEl = document.getElementById(`wetSlot${i}`);
+    if (slotEl && state.wetFeeds[i]) {
+      wetFeeds.push({ feed: state.wetFeeds[i], slotIdx: i });
+    }
+  }
+  const wetCount = wetFeeds.length;
+
+  wetFeeds.forEach(({ feed: f, slotIdx }, arrIdx) => {
+    const pctEl  = document.getElementById(`wetPctInput${slotIdx}`);
+    const subPct = wetCount === 1 ? 1
+      : (pctEl ? parseInt(pctEl.value)||0 : Math.floor(100/wetCount)) / 100;
+    const kcal  = DER * wetRatio * subPct;
+    const grams = Math.round(kcal / (f.kcal / 1000));
+    html += `
+      <div class="flex justify-between items-center p-4 bg-blue-50 rounded-2xl border border-blue-100">
+        <div>
+          <span class="text-[10px] font-black text-blue-400 uppercase">WET</span>
+          <p class="font-bold text-sm text-gray-800 mt-0.5">${escapeHtml(f.name)}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-black text-gray-900">${grams}g</p>
+          <p class="text-xs text-gray-400">${Math.round(kcal)} kcal</p>
+        </div>
+      </div>`;
+    resultData.습식사료_결과.push({ 이름: f.name, 급여량_g: grams, 담당칼로리: Math.round(kcal), 에너지기준_칼슘: f.ebCa, 에너지기준_인: f.ebP });
+  });
+
+  if (!html) {
+    html = '<p class="text-center text-gray-400 text-sm py-4">사료를 선택해주세요</p>';
+  }
+
+  document.getElementById('resDER').textContent = DER;
+  document.getElementById('resItems').innerHTML = html;
+  document.getElementById('resultArea').classList.remove('hidden');
+  document.getElementById('capBtn').classList.remove('hidden');
+  document.getElementById('capResult').classList.add('hidden');
+
+  // 비로그인 시 저장 유도 표시
+  const nudge = document.getElementById('saveNudge');
+  if (!state.user) nudge.classList.remove('hidden');
+  else nudge.classList.add('hidden');
+
+  state.lastResult = { DER, dryRatio, wetRatio, ...resultData };
+  document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+}
+
+// -----------------------------------------------
+// 칼슘/인 분석
+// -----------------------------------------------
+async function analyzeCaP() {
+  if (!state.lastResult) return;
+
+  const NRC = { 칼슘_권장: 280, 인_권장: 250, 비율_최소: 1.0, 비율_상한: 2.0 };
+  const 모든사료 = [
+    ...state.lastResult.건사료_결과.map(s => ({ ...s, 종류: '건사료' })),
+    ...state.lastResult.습식사료_결과.map(s => ({ ...s, 종류: '습식사료' }))
+  ];
+
+  let 총칼슘 = 0, 총인 = 0;
+  const 결과목록 = [], 제외목록 = [];
+
+  모든사료.forEach(s => {
+    if (s.에너지기준_칼슘 && s.에너지기준_인 && s.에너지기준_칼슘 > 0) {
+      const ca = s.에너지기준_칼슘 * s.담당칼로리;
+      const p  = s.에너지기준_인   * s.담당칼로리;
+      총칼슘 += ca; 총인 += p;
+      결과목록.push({ ...s, ca_mg: Math.round(ca), p_mg: Math.round(p) });
+    } else {
+      제외목록.push(s.이름);
+    }
+  });
+
+  const ratio = 총인 > 0 ? (총칼슘 / 총인).toFixed(2) : null;
+  const caOk  = 총칼슘 >= NRC.칼슘_권장 * (state.lastResult.DER / 1000);
+  const pOk   = 총인   >= NRC.인_권장   * (state.lastResult.DER / 1000);
+  const rOk   = ratio && ratio >= NRC.비율_최소 && ratio <= NRC.비율_상한;
+
+  const statusColor = (ok) => ok ? 'text-green-500' : 'text-red-400';
+  const statusText  = (ok) => ok ? '✅ 정상' : '⚠️ 확인필요';
+
+  let html = `
+    <div class="p-6 bg-gray-50 rounded-3xl space-y-4">
+      <h3 class="font-black text-gray-800">📊 칼슘 · 인 분석</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white p-4 rounded-2xl text-center">
+          <p class="text-xs text-gray-400 mb-1">칼슘 섭취량</p>
+          <p class="text-2xl font-black">${Math.round(총칼슘)}</p>
+          <p class="text-xs text-gray-400">mg / day</p>
+          <p class="text-xs font-bold mt-1 ${statusColor(caOk)}">${statusText(caOk)}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl text-center">
+          <p class="text-xs text-gray-400 mb-1">인 섭취량</p>
+          <p class="text-2xl font-black">${Math.round(총인)}</p>
+          <p class="text-xs text-gray-400">mg / day</p>
+          <p class="text-xs font-bold mt-1 ${statusColor(pOk)}">${statusText(pOk)}</p>
+        </div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl text-center">
+        <p class="text-xs text-gray-400 mb-1">칼슘 : 인 비율</p>
+        <p class="text-3xl font-black ${rOk ? 'text-green-500' : 'text-red-400'}">${ratio ? ratio + ' : 1' : '계산불가'}</p>
+        <p class="text-xs text-gray-400 mt-1">정상 범위 ${NRC.비율_최소} ~ ${NRC.비율_상한} : 1</p>
+      </div>
+      ${결과목록.map(s => `
+        <div class="flex justify-between text-sm py-2 border-b border-gray-100">
+          <span class="font-bold text-gray-600">${escapeHtml(s.이름)}</span>
+          <span class="text-gray-400">Ca ${s.ca_mg}mg · P ${s.p_mg}mg</span>
+        </div>`).join('')}
+      ${제외목록.length ? `<p class="text-xs text-gray-300">※ 데이터 없어 제외: ${제외목록.map(escapeHtml).join(', ')}</p>` : ''}
+      <p class="text-xs text-gray-300 leading-relaxed">※ NRC 성묘 기준 참고값입니다.</p>
+    </div>`;
+
+  document.getElementById('capResult').innerHTML = html;
+  document.getElementById('capResult').classList.remove('hidden');
+  document.getElementById('capResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+// -----------------------------------------------
+// 이미지 업로드
+// -----------------------------------------------
+function setUploadType(type) {
+  state.uploadType = type;
+  document.getElementById('upDryBtn').className =
+    `flex-1 py-3 rounded-2xl text-sm font-black border-2 ${type==='dry'
+      ? 'border-[#f4a44a] text-[#f4a44a]'
+      : 'border-gray-200 text-gray-400'}`;
+  document.getElementById('upWetBtn').className =
+    `flex-1 py-3 rounded-2xl text-sm font-black border-2 ${type==='wet'
+      ? 'border-[#4a9af4] text-[#4a9af4]'
+      : 'border-gray-200 text-gray-400'}`;
+}
+
+async function handleUpload(input) {
+  if (!input.files?.length) return;
+  const files   = Array.from(input.files).slice(0, 5);
+  const msgEl   = document.getElementById('uploadMsg');
+  let done = 0, fail = 0;
+
+  msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 0/${files.length} 분석 중...</p>`;
+
+  for (const file of files) {
+    const base64 = await new Promise(res => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result.split(',')[1]);
+      r.readAsDataURL(file);
+    });
+
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'upload',
+          base64Data: base64,
+          mimeType: file.type,
+          fileName: file.name,
+          type: state.uploadType
+        })
+      });
+      const result = await resp.json();
+      if (result.성공) done++;
+      else fail++;
+    } catch { fail++; }
+
+    msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 ${done+fail}/${files.length} 처리 중...</p>`;
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  msgEl.innerHTML = `<p class="text-xs ${fail ? 'text-orange-400' : 'text-green-500'} font-bold mt-2">
+    ${done}개 완료${fail ? ` · ${fail}개 실패` : ''} — 검수 후 목록에 반영됩니다.
+  </p>`;
+  input.value = '';
+}
+</script>
+</body>
+</html>
