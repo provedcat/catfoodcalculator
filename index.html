@@ -554,4 +554,187 @@ function calculate() {
 
   dryFeeds.forEach((f, i) => {
     const subPct = switching
-      ? (parseInt(document.getElementById(`drySw
+      ? (parseInt(document.getElementById(`drySwPct${i+1}`)?.value)||0) / (totalDrySubPct||100)
+      : 1;
+    const kcal  = DER * dryRatio * subPct;
+    const grams = Math.round(kcal / (f.kcal / 1000));
+    html += `
+      <div class="flex justify-between items-center p-4 bg-orange-50 rounded-2xl border border-orange-100">
+        <div>
+          <span class="text-[10px] font-black text-orange-400 uppercase">DRY</span>
+          <p class="font-bold text-sm text-gray-800 mt-0.5">${f.name}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-black text-gray-900">${grams}g</p>
+          <p class="text-xs text-gray-400">${Math.round(kcal)} kcal</p>
+        </div>
+      </div>`;
+    resultData.건사료_결과.push({ 이름: f.name, 급여량_g: grams, 담당칼로리: Math.round(kcal), 에너지기준_칼슘: f.ebCa, 에너지기준_인: f.ebP });
+  });
+
+  // 습식사료 계산
+  const wetFeeds = state.wetFeeds.filter(Boolean);
+  const wetCount = wetFeeds.length;
+
+  wetFeeds.forEach((f, i) => {
+    const pctEl = document.getElementById(`wetPctInput${i}`);
+    const subPct = wetCount === 1 ? 1
+      : (pctEl ? parseInt(pctEl.value)||0 : Math.floor(100/wetCount)) / 100;
+    const kcal  = DER * wetRatio * subPct;
+    const grams = Math.round(kcal / (f.kcal / 1000));
+    html += `
+      <div class="flex justify-between items-center p-4 bg-blue-50 rounded-2xl border border-blue-100">
+        <div>
+          <span class="text-[10px] font-black text-blue-400 uppercase">WET</span>
+          <p class="font-bold text-sm text-gray-800 mt-0.5">${f.name}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-black text-gray-900">${grams}g</p>
+          <p class="text-xs text-gray-400">${Math.round(kcal)} kcal</p>
+        </div>
+      </div>`;
+    resultData.습식사료_결과.push({ 이름: f.name, 급여량_g: grams, 담당칼로리: Math.round(kcal), 에너지기준_칼슘: f.ebCa, 에너지기준_인: f.ebP });
+  });
+
+  if (!html) {
+    html = '<p class="text-center text-gray-400 text-sm py-4">사료를 선택해주세요</p>';
+  }
+
+  document.getElementById('resDER').textContent = DER;
+  document.getElementById('resItems').innerHTML = html;
+  document.getElementById('resultArea').classList.remove('hidden');
+  document.getElementById('capBtn').classList.remove('hidden');
+  document.getElementById('capResult').classList.add('hidden');
+
+  state.lastResult = { DER, dryRatio, wetRatio, ...resultData };
+  document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+}
+
+// -----------------------------------------------
+// 칼슘/인 분석
+// -----------------------------------------------
+async function analyzeCaP() {
+  if (!state.lastResult) return;
+
+  const NRC = { 칼슘_권장: 280, 인_권장: 250, 비율_최소: 1.0, 비율_상한: 2.0 };
+  const 모든사료 = [
+    ...state.lastResult.건사료_결과.map(s => ({ ...s, 종류: '건사료' })),
+    ...state.lastResult.습식사료_결과.map(s => ({ ...s, 종류: '습식사료' }))
+  ];
+
+  let 총칼슘 = 0, 총인 = 0;
+  const 결과목록 = [], 제외목록 = [];
+
+  모든사료.forEach(s => {
+    if (s.에너지기준_칼슘 && s.에너지기준_인 && s.에너지기준_칼슘 > 0) {
+      const ca = s.에너지기준_칼슘 * s.담당칼로리;
+      const p  = s.에너지기준_인   * s.담당칼로리;
+      총칼슘 += ca; 총인 += p;
+      결과목록.push({ ...s, ca_mg: Math.round(ca), p_mg: Math.round(p) });
+    } else {
+      제외목록.push(s.이름);
+    }
+  });
+
+  const ratio = 총인 > 0 ? (총칼슘 / 총인).toFixed(2) : null;
+  const caOk  = 총칼슘 >= NRC.칼슘_권장 * (state.lastResult.DER / 1000);
+  const pOk   = 총인   >= NRC.인_권장   * (state.lastResult.DER / 1000);
+  const rOk   = ratio && ratio >= NRC.비율_최소 && ratio <= NRC.비율_상한;
+
+  const statusColor = (ok) => ok ? 'text-green-500' : 'text-red-400';
+  const statusText  = (ok) => ok ? '✅ 정상' : '⚠️ 확인필요';
+
+  let html = `
+    <div class="p-6 bg-gray-50 rounded-3xl space-y-4">
+      <h3 class="font-black text-gray-800">📊 칼슘 · 인 분석</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white p-4 rounded-2xl text-center">
+          <p class="text-xs text-gray-400 mb-1">칼슘 섭취량</p>
+          <p class="text-2xl font-black">${Math.round(총칼슘)}</p>
+          <p class="text-xs text-gray-400">mg / day</p>
+          <p class="text-xs font-bold mt-1 ${statusColor(caOk)}">${statusText(caOk)}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl text-center">
+          <p class="text-xs text-gray-400 mb-1">인 섭취량</p>
+          <p class="text-2xl font-black">${Math.round(총인)}</p>
+          <p class="text-xs text-gray-400">mg / day</p>
+          <p class="text-xs font-bold mt-1 ${statusColor(pOk)}">${statusText(pOk)}</p>
+        </div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl text-center">
+        <p class="text-xs text-gray-400 mb-1">칼슘 : 인 비율</p>
+        <p class="text-3xl font-black ${rOk ? 'text-green-500' : 'text-red-400'}">${ratio ? ratio + ' : 1' : '계산불가'}</p>
+        <p class="text-xs text-gray-400 mt-1">정상 범위 ${NRC.비율_최소} ~ ${NRC.비율_상한} : 1</p>
+      </div>
+      ${결과목록.map(s => `
+        <div class="flex justify-between text-sm py-2 border-b border-gray-100">
+          <span class="font-bold text-gray-600">${s.이름}</span>
+          <span class="text-gray-400">Ca ${s.ca_mg}mg · P ${s.p_mg}mg</span>
+        </div>`).join('')}
+      ${제외목록.length ? `<p class="text-xs text-gray-300">※ 데이터 없어 제외: ${제외목록.join(', ')}</p>` : ''}
+      <p class="text-xs text-gray-300 leading-relaxed">※ NRC 성묘 기준 참고값입니다.</p>
+    </div>`;
+
+  document.getElementById('capResult').innerHTML = html;
+  document.getElementById('capResult').classList.remove('hidden');
+  document.getElementById('capResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+// -----------------------------------------------
+// 이미지 업로드
+// -----------------------------------------------
+function setUploadType(type) {
+  state.uploadType = type;
+  document.getElementById('upDryBtn').className =
+    `flex-1 py-3 rounded-2xl text-sm font-black border-2 ${type==='dry'
+      ? 'border-[#f4a44a] text-[#f4a44a]'
+      : 'border-gray-200 text-gray-400'}`;
+  document.getElementById('upWetBtn').className =
+    `flex-1 py-3 rounded-2xl text-sm font-black border-2 ${type==='wet'
+      ? 'border-[#4a9af4] text-[#4a9af4]'
+      : 'border-gray-200 text-gray-400'}`;
+}
+
+async function handleUpload(input) {
+  if (!input.files?.length) return;
+  const files   = Array.from(input.files).slice(0, 5);
+  const msgEl   = document.getElementById('uploadMsg');
+  let done = 0, fail = 0;
+
+  msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 0/${files.length} 분석 중...</p>`;
+
+  for (const file of files) {
+    const base64 = await new Promise(res => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result.split(',')[1]);
+      r.readAsDataURL(file);
+    });
+
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'upload',
+          base64Data: base64,
+          mimeType: file.type,
+          fileName: file.name,
+          type: state.uploadType
+        })
+      });
+      const result = await resp.json();
+      if (result.성공) done++;
+      else fail++;
+    } catch { fail++; }
+
+    msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 ${done+fail}/${files.length} 처리 중...</p>`;
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  msgEl.innerHTML = `<p class="text-xs ${fail ? 'text-orange-400' : 'text-green-500'} font-bold mt-2">
+    ${done}개 완료${fail ? ` · ${fail}개 실패` : ''} — 검수 후 목록에 반영됩니다.
+  </p>`;
+  input.value = '';
+}
+</script>
+</body>
+</html>
