@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProvedCat - 고양이 영양 설계</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    :root { --brand:#2d7dd2; --dry:#f4a44a; --wet:#4a9af4; }
+    body { font-size:16px; background:#f3f4f6; word-break:keep-all; font-family:-apple-system,sans-serif; }
+    input,select { outline:none; }
+    input[type=range] { -webkit-appearance:none; background:#e5e7eb; height:8px; border-radius:4px; width:100%; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; background:var(--brand); border-radius:50%; cursor:pointer; border:4px solid white; box-shadow:0 2px 4px rgba(0,0,0,.15); }
+    .autocomplete-item:hover { background:#f0f7ff; }
+  </style>
+</head>
+<body class="flex justify-center">
+<div class="w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
+
+  <!-- 헤더 -->
+  <header class="px-6 pt-10 pb-4 flex justify-between items-center">
+    <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
+    <button id="loginBtn" onclick="toggleAuth()"
+      class="text-xs font-bold text-gray-400 border border-gray-200 rounded-xl px-3 py-2">
+      로그인
+    </button>
+  </header>
+
+  <!-- 로그인 모달 -->
+  <div id="authModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
+    <div class="bg-white rounded-3xl p-8 w-full max-w-sm space-y-4">
+      <h3 class="font-black text-xl text-center">로그인 / 회원가입</h3>
+      <input type="email" id="authEmail" placeholder="이메일"
+        class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+      <input type="password" id="authPassword" placeholder="비밀번호"
+        class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+      <button onclick="signIn()"
+        class="w-full py-4 bg-[#2d7dd2] text-white font-black rounded-2xl">로그인</button>
+      <button onclick="signUp()"
+        class="w-full py-4 bg-gray-100 text-gray-600 font-black rounded-2xl">회원가입</button>
+      <p id="authMsg" class="text-center text-xs text-red-400 hidden"></p>
+      <button onclick="closeAuth()" class="w-full text-center text-xs text-gray-300 pt-2">닫기</button>
+    </div>
+  </div>
+
+  <main class="px-6 pb-28 space-y-10">
+
+    <!-- 1단계: 고양이 정보 -->
+    <section class="space-y-4">
+      <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
+      <div class="flex gap-3">
+        <input type="text" id="catName" placeholder="고양이 이름"
+          class="flex-1 p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
+        <div class="relative w-32">
+          <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
+            class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <input type="date" id="catBirth"
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+        <select id="catNeutered"
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+          <option value="true">중성화 O</option>
+          <option value="false">중성화 X</option>
+        </select>
+      </div>
+      <label class="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl cursor-pointer border border-gray-100">
+        <input type="checkbox" id="isDiet" class="w-5 h-5 accent-[#2d7dd2]">
+        <div>
+          <p class="font-bold text-sm text-gray-700">다이어트 모드</p>
+          <p class="text-xs text-gray-400">계산값에서 10% 추가 차감</p>
+        </div>
+      </label>
+
+      <!-- 칼로리 표시 -->
+      <div id="calBox" class="hidden p-6 bg-blue-50 rounded-2xl text-center">
+        <p class="text-xs font-bold text-blue-400 mb-1">하루 필요 칼로리</p>
+        <p class="text-4xl font-black text-[#2d7dd2]" id="derVal">0</p>
+        <p class="text-xs text-gray-400 mt-1" id="derDetail"></p>
+      </div>
+    </section>
+
+    <!-- 2단계: 식단 구성 -->
+    <section class="space-y-6">
+      <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
+
+      <!-- 건/습 비율 슬라이더 -->
+      <div class="p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
+        <div class="flex justify-between items-center font-black">
+          <div>
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">DRY</p>
+            <p class="text-2xl text-[#f4a44a]"><span id="dryPct">30</span><span class="text-sm">%</span></p>
+          </div>
+          <div class="text-gray-200 text-xl">:</div>
+          <div class="text-right">
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">WET</p>
+            <p class="text-2xl text-[#4a9af4]"><span id="wetPct">70</span><span class="text-sm">%</span></p>
+          </div>
+        </div>
+        <input type="range" id="ratioSlider" min="0" max="100" value="30"
+          oninput="updateRatio(this.value)">
+        <div class="flex justify-between text-[10px] text-gray-300 font-bold">
+          <span>← 습식 100%</span><span>건사료 100% →</span>
+        </div>
+      </div>
+
+      <!-- 건사료 검색 -->
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()"
+              class="w-4 h-4 accent-[#f4a44a]">
+            <span class="text-xs font-bold text-gray-400">교체 중</span>
+          </label>
+        </div>
+
+        <!-- 건사료 1 -->
+        <div class="relative">
+          <div class="flex items-center bg-orange-50 rounded-2xl border border-orange-100 overflow-hidden">
+            <input type="text" id="dryInput1" placeholder="건사료 검색..."
+              oninput="searchFeed('dry',this.value,'dryList1',0)"
+              onfocus="searchFeed('dry',this.value,'dryList1',0)"
+              class="flex-1 p-4 bg-transparent font-bold text-sm">
+            <div id="drySwPctWrap1" class="hidden items-center bg-orange-100 px-3 h-14">
+              <input type="number" id="drySwPct1" value="70" min="0" max="100"
+                class="w-10 bg-transparent text-center font-black text-orange-600 text-sm">
+              <span class="text-xs font-black text-orange-400">%</span>
+            </div>
+          </div>
+          <div id="dryList1"
+            class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
+          </div>
+          <p id="drySelected1" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
+        </div>
+
+        <!-- 건사료 2 (교체 중일 때) -->
+        <div id="dryArea2" class="hidden relative">
+          <div class="flex items-center bg-orange-50 rounded-2xl border border-dashed border-orange-200 overflow-hidden">
+            <input type="text" id="dryInput2" placeholder="새 건사료 검색..."
+              oninput="searchFeed('dry',this.value,'dryList2',1)"
+              onfocus="searchFeed('dry',this.value,'dryList2',1)"
+              class="flex-1 p-4 bg-transparent font-bold text-sm">
+            <div class="flex items-center bg-orange-100 px-3 h-14">
+              <input type="number" id="drySwPct2" value="30" min="0" max="100"
+                class="w-10 bg-transparent text-center font-black text-orange-600 text-sm">
+              <span class="text-xs font-black text-orange-400">%</span>
+            </div>
+          </div>
+          <div id="dryList2"
+            class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
+          </div>
+          <p id="drySelected2" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
+        </div>
+      </div>
+
+      <!-- 습식사료 검색 -->
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-black text-[#4a9af4] tracking-widest italic">WET FOOD</p>
+          <button onclick="addWetSlot()" id="addWetBtn"
+            class="text-xs font-bold text-blue-400 border border-blue-200 rounded-xl px-3 py-1">
+            + 추가 (최대 3개)
+          </button>
+        </div>
+        <div id="wetSlots" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- 계산 버튼 -->
+    <button onclick="calculate()"
+      class="w-full py-5 bg-[#2d7dd2] text-white font-black text-lg rounded-3xl shadow-lg">
+      급여량 계산하기
+    </button>
+
+    <!-- 결과 -->
+    <div id="resultArea" class="hidden space-y-4">
+      <div class="p-6 bg-gray-900 rounded-3xl text-white text-center">
+        <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Daily Feeding Plan</p>
+        <p class="text-5xl font-black text-white" id="resDER">0</p>
+        <p class="text-xs text-gray-400 mt-1">kcal / day</p>
+      </div>
+      <div id="resItems" class="space-y-2"></div>
+      <p class="text-xs text-gray-300 text-center leading-relaxed">
+        ※ 참고용 계산값입니다. 질환이 있는 경우 수의사와 상담하세요.
+      </p>
+    </div>
+
+    <!-- 칼슘/인 분석 버튼 -->
+    <button id="capBtn" onclick="analyzeCaP()" class="hidden w-full py-5 bg-[#5a9e6f] text-white font-black text-lg rounded-3xl shadow-lg">
+      📊 칼슘 · 인 분석하기
+    </button>
+
+    <!-- 칼슘/인 결과 -->
+    <div id="capResult" class="hidden space-y-3"></div>
+
+    <!-- 수분 섭취량 분석 버튼 -->
+    <button id="waterBtn" onclick="analyzeWater()" class="hidden w-full py-5 bg-[#38a8c5] text-white font-black text-lg rounded-3xl shadow-lg">
+      💧 수분 섭취량 분석하기
+    </button>
+
+    <!-- 수분 섭취량 결과 -->
+    <div id="waterResult" class="hidden space-y-3"></div>
+
+    <!-- 사료 추가 업로드 -->
+    <section class="space-y-4 pt-4 border-t border-gray-100">
+      <h2 class="text-lg font-black text-gray-700">사료가 없나요?</h2>
+      <p class="text-xs text-gray-400 leading-relaxed">
+        영양성분표가 모두 보이는 사진 <strong>1장</strong>을 올려주세요.<br>
+        앞면·뒷면 등 여러 장이 필요한 경우 각각 업로드해주세요.
+      </p>
+      <div class="flex gap-2">
+        <button onclick="setUploadType('dry')" id="upDryBtn"
+          class="flex-1 py-3 rounded-2xl text-sm font-black border-2 border-[#f4a44a] text-[#f4a44a]">
+          건사료 추가
+        </button>
+        <button onclick="setUploadType('wet')" id="upWetBtn"
+          class="flex-1 py-3 rounded-2xl text-sm font-black border border-gray-200 text-gray-400">
+          습식사료 추가
+        </button>
+      </div>
+      <label class="block w-full">
+        <div class="w-full py-6 border-2 border-dashed border-gray-200 rounded-2xl text-center cursor-pointer hover:border-[#2d7dd2] transition-colors">
+          <p class="text-2xl mb-1">📷</p>
+          <p class="text-sm font-bold text-gray-400">사진을 선택하세요</p>
+          <p class="text-xs text-gray-300 mt-1">JPG, PNG · 최대 5장 · 10MB 이하</p>
+        </div>
+        <input type="file" id="uploadInput" accept="image/*" multiple class="hidden"
+          onchange="handleUpload(this)">
+      </label>
+      <div id="uploadMsg"></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// -----------------------------------------------
+// ⚙️ 설정
+// -----------------------------------------------
+const SUPABASE_URL  = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2x2dGduaHJkbXp4emxzdHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NjE1MjIsImV4cCI6MjA5MTUzNzUyMn0.6nI4uEp9H9gVn3Sjm4Qhs5XXFvhUhfGBf6e0Nqce1EM';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwHbg3UvqnWyP39rtNTmG8DmHKvj4PRU50rUeL5ebif4Knn2TYrgSzkv5fDgjhRgb5dEg/exec';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// -----------------------------------------------
+// 전역 상태
+// -----------------------------------------------
+let state = {
+  dryFeeds:    [null, null],        // 선택된 건사료 [0]=현사료 [1]=신사료
+  wetFeeds:    [null, null, null],  // 선택된 습식사료
+  wetSlotCount: 1,
+  uploadType:  'dry',
+  lastResult:  null,
+  user:        null
+};
+
+// -----------------------------------------------
+// 앱 시작
+// -----------------------------------------------
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) onLogin(session.user);
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) onLogin(session.user);
+    else onLogout();
+  });
+
+  addWetSlot();
+
+  ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('change', updateCalorie);
+    if (id === 'catWeight') el.addEventListener('input', updateCalorie);
+  });
+});
+
+// -----------------------------------------------
+// 인증
+// -----------------------------------------------
+function toggleAuth() {
+  document.getElementById('authModal').classList.toggle('hidden');
+}
+function closeAuth() {
+  document.getElementById('authModal').classList.add('hidden');
+}
+async function signIn() {
+  const email    = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) showAuthMsg(error.message);
+  else closeAuth();
+}
+async function signUp() {
+  const email    = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const { error } = await sb.auth.signUp({ email, password });
+  if (error) showAuthMsg(error.message);
+  else showAuthMsg('가입 완료! 이메일을 확인해주세요.');
+}
+function showAuthMsg(msg) {
+  const el = document.getElementById('authMsg');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function onLogin(user) {
+  state.user = user;
+  document.getElementById('loginBtn').textContent = user.email.split('@')[0];
+}
+function onLogout() {
+  state.user = null;
+  document.getElementById('loginBtn').textContent = '로그인';
+}
+
+// -----------------------------------------------
+// 칼로리 자동 계산
+// -----------------------------------------------
+function updateCalorie() {
+  const weight   = parseFloat(document.getElementById('catWeight').value);
+  const birthStr = document.getElementById('catBirth').value;
+  if (!weight || !birthStr) return;
+
+  const today    = new Date();
+  const birth    = new Date(birthStr);
+  const months   = (today.getFullYear() - birth.getFullYear()) * 12
+                 + (today.getMonth() - birth.getMonth());
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+
+  const RER = 70 * Math.pow(weight, 0.75);
+  let f_age, label;
+
+  if      (months < 4)   { f_age = 2.75; label = '초기 성장기'; }
+  else if (months < 9)   { f_age = 2.1;  label = '중기 성장기'; }
+  else if (months < 12)  { f_age = 1.9;  label = '후기 성장기'; }
+  else if (months >= 132){ f_age = 1.1;  label = '노령묘'; }
+  else                   { f_age = neutered ? 1.2 : 1.4;
+                           label = neutered ? '중성화 성묘' : '비중성화 성묘'; }
+
+  const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
+  const f_diet   = diet ? 0.9 : 1.0;
+  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
+
+  document.getElementById('derVal').textContent = DER;
+  let detail = `RER ${Math.round(RER)} × ${f_age} (${label})`;
+  if (f_neuter < 1) detail += ` × ${f_neuter} (중성화)`;
+  if (f_diet < 1)   detail += ` × ${f_diet} (다이어트)`;
+  document.getElementById('derDetail').textContent = detail;
+  document.getElementById('calBox').classList.remove('hidden');
+}
+
+// -----------------------------------------------
+// 비율 슬라이더
+// -----------------------------------------------
+function updateRatio(v) {
+  document.getElementById('dryPct').textContent = v;
+  document.getElementById('wetPct').textContent = 100 - v;
+}
+
+// -----------------------------------------------
+// 건사료 교체 토글
+// -----------------------------------------------
+function toggleDrySwitching() {
+  const on   = document.getElementById('drySwitching').checked;
+  const area = document.getElementById('dryArea2');
+  const wrap = document.getElementById('drySwPctWrap1');
+
+  if (on) {
+    area.classList.remove('hidden');
+    wrap.classList.remove('hidden');
+    wrap.classList.add('flex');
+  } else {
+    area.classList.add('hidden');
+    wrap.classList.remove('flex');
+    wrap.classList.add('hidden');
+    state.dryFeeds[1] = null;
+    document.getElementById('dryInput2').value = '';
+    document.getElementById('drySelected2').classList.add('hidden');
+  }
+}
+
+// -----------------------------------------------
+// 습식사료 슬롯 추가
+// -----------------------------------------------
+function addWetSlot() {
+  if (state.wetSlotCount >= 3) return;
+  const i   = state.wetSlotCount;
+  const idx = i;
+
+  const slot = document.createElement('div');
+  slot.id    = `wetSlot${i}`;
+  slot.className = 'relative';
+  slot.innerHTML = `
+    <div class="flex items-center bg-blue-50 rounded-2xl border border-blue-100 overflow-hidden">
+      <input type="text" id="wetInput${i}" placeholder="습식사료 검색..."
+        oninput="searchFeed('wet',this.value,'wetList${i}',${idx})"
+        onfocus="searchFeed('wet',this.value,'wetList${i}',${idx})"
+        class="flex-1 p-4 bg-transparent font-bold text-sm">
+      ${i > 0 ? `
+      <div class="flex items-center bg-blue-100 px-3 h-14">
+        <input type="number" id="wetPctInput${i}" value="${Math.floor(100/(i+1))}" min="0" max="100"
+          class="w-10 bg-transparent text-center font-black text-blue-600 text-sm">
+        <span class="text-xs font-black text-blue-400">%</span>
+      </div>
+      <button onclick="removeWetSlot(${i})" class="px-3 h-14 bg-blue-100 text-blue-300 font-black text-lg">✕</button>
+      ` : ''}
+    </div>
+    <div id="wetList${i}"
+      class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
+    </div>
+    <p id="wetSelected${i}" class="text-xs text-blue-400 font-bold mt-1 px-1 hidden"></p>
+  `;
+  document.getElementById('wetSlots').appendChild(slot);
+  state.wetSlotCount++;
+
+  if (state.wetSlotCount >= 3) {
+    document.getElementById('addWetBtn').classList.add('hidden');
+  }
+}
+
+function removeWetSlot(i) {
+  document.getElementById(`wetSlot${i}`).remove();
+  state.wetFeeds[i] = null;
+  state.wetSlotCount--;
+  document.getElementById('addWetBtn').classList.remove('hidden');
+}
+
+// -----------------------------------------------
+// 사료 검색 (Supabase 직접 조회)
+// ★ 수분(moisture) 컬럼 추가
+// -----------------------------------------------
+async function searchFeed(type, query, listId, slotIdx) {
+  const list = document.getElementById(listId);
+
+  if (!query || query.length < 1) {
+    list.classList.add('hidden');
+    return;
+  }
+
+  const { data, error } = await sb
+    .from('feeds')
+    .select('제품명, 제조사, final_me, eb_칼슘, eb_인, 수분')
+    .eq('type', type)
+    .eq('verified', true)
+    .gt('final_me', 0)
+    .ilike('제품명', `%${query}%`)
+    .limit(10);
+
+  if (error) {
+    list.innerHTML = `<div class="p-3 text-red-400 text-xs">${error.message}</div>`;
+    list.classList.remove('hidden');
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    list.innerHTML = `<div class="p-4 text-gray-400 text-xs text-center">검색 결과가 없습니다</div>`;
+    list.classList.remove('hidden');
+    return;
+  }
+
+  list.innerHTML = data.map(f => {
+    const display  = f.제조사 ? `${f.제조사} | ${f.제품명}` : f.제품명;
+    const moisture = f.수분 != null ? f.수분 : 'null';
+    return `
+      <div class="autocomplete-item p-4 border-b border-gray-50 cursor-pointer"
+        onclick="selectFeed('${type}',${slotIdx},'${f.제품명.replace(/'/g,"\\'")}','${display.replace(/'/g,"\\'")}',${f.final_me},${f.eb_칼슘||0},${f.eb_인||0},${moisture},'${listId}')">
+        <p class="font-bold text-sm text-gray-800">${display}</p>
+        <p class="text-xs text-gray-400 mt-0.5">${f.final_me} kcal/kg${f.수분 != null ? ` · 수분 ${f.수분}%` : ''}</p>
+      </div>`;
+  }).join('');
+
+  list.classList.remove('hidden');
+}
+
+// -----------------------------------------------
+// 사료 선택 확정
+// ★ moisture 파라미터 추가
+// -----------------------------------------------
+function selectFeed(type, idx, name, display, kcal, ebCa, ebP, moisture, listId) {
+  if (type === 'dry') {
+    state.dryFeeds[idx] = { name, kcal, ebCa, ebP, moisture };
+    document.getElementById(`dryInput${idx+1}`).value = display;
+    const sel = document.getElementById(`drySelected${idx+1}`);
+    sel.textContent = `✓ ${name} (${kcal} kcal/kg)`;
+    sel.classList.remove('hidden');
+  } else {
+    state.wetFeeds[idx] = { name, kcal, ebCa, ebP, moisture };
+    document.getElementById(`wetInput${idx}`).value = display;
+    const sel = document.getElementById(`wetSelected${idx}`);
+    sel.textContent = `✓ ${name} (${kcal} kcal/kg)`;
+    sel.classList.remove('hidden');
+  }
+
+  document.getElementById(listId).classList.add('hidden');
+}
+
+// 외부 클릭 시 검색 목록 닫기
+document.addEventListener('click', e => {
+  if (!e.target.closest('.relative')) {
+    document.querySelectorAll('[id^="dryList"],[id^="wetList"]')
+      .forEach(el => el.classList.add('hidden'));
+  }
+});
+
+// -----------------------------------------------
+// 급여량 계산
+// ★ resultData에 수분(moisture_pct) 포함
+// -----------------------------------------------
+function calculate() {
+  const weight   = parseFloat(document.getElementById('catWeight').value);
+  const birthStr = document.getElementById('catBirth').value;
+
+  if (!weight || !birthStr) {
+    alert('체중과 생년월일을 입력해주세요.');
+    return;
+  }
+
+  const today    = new Date();
+  const birth    = new Date(birthStr);
+  const months   = (today.getFullYear() - birth.getFullYear()) * 12
+                 + (today.getMonth() - birth.getMonth());
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+  const RER      = 70 * Math.pow(weight, 0.75);
+
+  let f_age;
+  if      (months < 4)   f_age = 2.75;
+  else if (months < 9)   f_age = 2.1;
+  else if (months < 12)  f_age = 1.9;
+  else if (months >= 132)f_age = 1.1;
+  else                   f_age = neutered ? 1.2 : 1.4;
+
+  const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
+  const f_diet   = diet ? 0.9 : 1.0;
+  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
+
+  const dryRatio  = parseInt(document.getElementById('dryPct').textContent) / 100;
+  const wetRatio  = parseInt(document.getElementById('wetPct').textContent) / 100;
+  const switching = document.getElementById('drySwitching').checked;
+
+  let html = '';
+  let resultData = { 건사료_결과: [], 습식사료_결과: [] };
+
+  // 건사료 계산
+  const dryFeeds = switching
+    ? state.dryFeeds.filter(Boolean)
+    : [state.dryFeeds[0]].filter(Boolean);
+
+  const totalDrySubPct = switching
+    ? dryFeeds.reduce((sum, _, i) => {
+        const el = document.getElementById(`drySwPct${i+1}`);
+        return sum + (el ? parseInt(el.value)||0 : 0);
+      }, 0)
+    : 100;
+
+  dryFeeds.forEach((f, i) => {
+    const subPct = switching
+      ? (parseInt(document.getElementById(`drySwPct${i+1}`)?.value)||0) / (totalDrySubPct||100)
+      : 1;
+    const kcal  = DER * dryRatio * subPct;
+    const grams = Math.round(kcal / (f.kcal / 1000));
+    html += `
+      <div class="flex justify-between items-center p-4 bg-orange-50 rounded-2xl border border-orange-100">
+        <div>
+          <span class="text-[10px] font-black text-orange-400 uppercase">DRY</span>
+          <p class="font-bold text-sm text-gray-800 mt-0.5">${f.name}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-black text-gray-900">${grams}g</p>
+          <p class="text-xs text-gray-400">${Math.round(kcal)} kcal</p>
+        </div>
+      </div>`;
+    resultData.건사료_결과.push({
+      이름: f.name, 급여량_g: grams, 담당칼로리: Math.round(kcal),
+      에너지기준_칼슘: f.ebCa, 에너지기준_인: f.ebP, 수분_pct: f.moisture
+    });
+  });
+
+  // 습식사료 계산
+  const wetFeeds  = state.wetFeeds.filter(Boolean);
+  const wetCount  = wetFeeds.length;
+
+  wetFeeds.forEach((f, i) => {
+    const pctEl  = document.getElementById(`wetPctInput${i}`);
+    const subPct = wetCount === 1 ? 1
+      : (pctEl ? parseInt(pctEl.value)||0 : Math.floor(100/wetCount)) / 100;
+    const kcal  = DER * wetRatio * subPct;
+    const grams = Math.round(kcal / (f.kcal / 1000));
+    html += `
+      <div class="flex justify-between items-center p-4 bg-blue-50 rounded-2xl border border-blue-100">
+        <div>
+          <span class="text-[10px] font-black text-blue-400 uppercase">WET</span>
+          <p class="font-bold text-sm text-gray-800 mt-0.5">${f.name}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-black text-gray-900">${grams}g</p>
+          <p class="text-xs text-gray-400">${Math.round(kcal)} kcal</p>
+        </div>
+      </div>`;
+    resultData.습식사료_결과.push({
+      이름: f.name, 급여량_g: grams, 담당칼로리: Math.round(kcal),
+      에너지기준_칼슘: f.ebCa, 에너지기준_인: f.ebP, 수분_pct: f.moisture
+    });
+  });
+
+  if (!html) {
+    html = '<p class="text-center text-gray-400 text-sm py-4">사료를 선택해주세요</p>';
+  }
+
+  document.getElementById('resDER').textContent = DER;
+  document.getElementById('resItems').innerHTML = html;
+  document.getElementById('resultArea').classList.remove('hidden');
+  document.getElementById('capBtn').classList.remove('hidden');
+  document.getElementById('waterBtn').classList.remove('hidden');
+  document.getElementById('capResult').classList.add('hidden');
+  document.getElementById('waterResult').classList.add('hidden');
+
+  state.lastResult = { DER, dryRatio, wetRatio, ...resultData };
+  document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+}
+
+// -----------------------------------------------
+// 칼슘/인 분석
+// -----------------------------------------------
+async function analyzeCaP() {
+  if (!state.lastResult) return;
+
+  const NRC = { 칼슘_권장: 280, 인_권장: 250, 비율_최소: 1.0, 비율_상한: 2.0 };
+  const 모든사료 = [
+    ...state.lastResult.건사료_결과.map(s => ({ ...s, 종류: '건사료' })),
+    ...state.lastResult.습식사료_결과.map(s => ({ ...s, 종류: '습식사료' }))
+  ];
+
+  let 총칼슘 = 0, 총인 = 0;
+  const 결과목록 = [], 제외목록 = [];
+
+  모든사료.forEach(s => {
+    if (s.에너지기준_칼슘 && s.에너지기준_인 && s.에너지기준_칼슘 > 0) {
+      const ca = s.에너지기준_칼슘 * s.담당칼로리;
+      const p  = s.에너지기준_인   * s.담당칼로리;
+      총칼슘 += ca; 총인 += p;
+      결과목록.push({ ...s, ca_mg: Math.round(ca), p_mg: Math.round(p) });
+    } else {
+      제외목록.push(s.이름);
+    }
+  });
+
+  const ratio = 총인 > 0 ? (총칼슘 / 총인).toFixed(2) : null;
+  const caOk  = 총칼슘 >= NRC.칼슘_권장 * (state.lastResult.DER / 1000);
+  const pOk   = 총인   >= NRC.인_권장   * (state.lastResult.DER / 1000);
+  const rOk   = ratio && ratio >= NRC.비율_최소 && ratio <= NRC.비율_상한;
+
+  const statusColor = (ok) => ok ? 'text-green-500' : 'text-red-400';
+  const statusText  = (ok) => ok ? '✅ 정상' : '⚠️ 확인필요';
+
+  let html = `
+    <div class="p-6 bg-gray-50 rounded-3xl space-y-4">
+      <h3 class="font-black text-gray-800">📊 칼슘 · 인 분석</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white p-4 rounded-2xl text-center">
+          <p class="text-xs text-gray-400 mb-1">칼슘 섭취량</p>
+          <p class="text-2xl font-black">${Math.round(총칼슘)}</p>
+          <p class="text-xs text-gray-400">mg / day</p>
+          <p class="text-xs font-bold mt-1 ${statusColor(caOk)}">${statusText(caOk)}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl text-center">
+          <p class="text-xs text-gray-400 mb-1">인 섭취량</p>
+          <p class="text-2xl font-black">${Math.round(총인)}</p>
+          <p class="text-xs text-gray-400">mg / day</p>
+          <p class="text-xs font-bold mt-1 ${statusColor(pOk)}">${statusText(pOk)}</p>
+        </div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl text-center">
+        <p class="text-xs text-gray-400 mb-1">칼슘 : 인 비율</p>
+        <p class="text-3xl font-black ${rOk ? 'text-green-500' : 'text-red-400'}">${ratio ? ratio + ' : 1' : '계산불가'}</p>
+        <p class="text-xs text-gray-400 mt-1">정상 범위 ${NRC.비율_최소} ~ ${NRC.비율_상한} : 1</p>
+      </div>
+      ${결과목록.map(s => `
+        <div class="flex justify-between text-sm py-2 border-b border-gray-100">
+          <span class="font-bold text-gray-600">${s.이름}</span>
+          <span class="text-gray-400">Ca ${s.ca_mg}mg · P ${s.p_mg}mg</span>
+        </div>`).join('')}
+      ${제외목록.length ? `<p class="text-xs text-gray-300">※ 데이터 없어 제외: ${제외목록.join(', ')}</p>` : ''}
+      <p class="text-xs text-gray-300 leading-relaxed">※ NRC 성묘 기준 참고값입니다.</p>
+    </div>`;
+
+  document.getElementById('capResult').innerHTML = html;
+  document.getElementById('capResult').classList.remove('hidden');
+  document.getElementById('capResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+// -----------------------------------------------
+// 수분 섭취량 분석
+// 계산식: 사료 급여량(g) × 수분(%) / 100 = 사료에서 오는 수분(ml)
+// 고양이 권장 수분: 체중(kg) × 44~55ml (WSAVA 참고)
+// -----------------------------------------------
+function analyzeWater() {
+  if (!state.lastResult) return;
+
+  const weight = parseFloat(document.getElementById('catWeight').value) || 0;
+
+  // 권장 수분 섭취량 범위 (ml/day) — 체중(kg) × 44~55ml
+  const 권장_최소 = Math.round(weight * 44);
+  const 권장_최대 = Math.round(weight * 55);
+
+  const 모든사료 = [
+    ...state.lastResult.건사료_결과.map(s => ({ ...s, 종류: '건사료' })),
+    ...state.lastResult.습식사료_결과.map(s => ({ ...s, 종류: '습식사료' }))
+  ];
+
+  let 총수분_ml = 0;
+  const 결과목록 = [];
+  const 제외목록 = [];
+
+  모든사료.forEach(s => {
+    // 수분 데이터가 있는 경우만 계산
+    if (s.수분_pct != null && s.수분_pct > 0) {
+      const water_ml = parseFloat(((s.급여량_g * s.수분_pct) / 100).toFixed(1));
+      총수분_ml += water_ml;
+      결과목록.push({ ...s, water_ml });
+    } else {
+      제외목록.push(s.이름);
+    }
+  });
+
+  총수분_ml = parseFloat(총수분_ml.toFixed(1));
+
+  // 권장 범위 판정
+  const ok       = 총수분_ml >= 권장_최소;
+  const 부족분   = ok ? 0 : Math.round(권장_최소 - 총수분_ml);
+  const 충족률   = 권장_최소 > 0 ? Math.round((총수분_ml / 권장_최소) * 100) : 0;
+
+  // 게이지 바 색상
+  const gaugeColor = 충족률 >= 100 ? '#22c55e' : 충족률 >= 70 ? '#f59e0b' : '#ef4444';
+  const gaugeWidth  = Math.min(충족률, 100);
+
+  // 상태 메시지
+  let statusMsg = '';
+  if (총수분_ml === 0 && 제외목록.length === 모든사료.length) {
+    statusMsg = `<p class="text-sm text-gray-400 text-center py-2">수분 데이터가 있는 사료가 없습니다.</p>`;
+  } else if (ok) {
+    statusMsg = `<p class="text-sm font-bold text-green-500">✅ 사료만으로도 권장 수분 최소치 충족!</p>`;
+  } else {
+    statusMsg = `<p class="text-sm font-bold text-amber-500">💧 물그릇으로 약 <span class="text-lg">${부족분}ml</span> 이상 추가 섭취 권장</p>`;
+  }
+
+  let html = `
+    <div class="p-6 bg-gray-50 rounded-3xl space-y-4">
+      <h3 class="font-black text-gray-800">💧 수분 섭취량 분석</h3>
+
+      <!-- 총 수분량 + 게이지 -->
+      <div class="bg-white p-5 rounded-2xl space-y-3">
+        <div class="flex justify-between items-end">
+          <div>
+            <p class="text-xs text-gray-400 mb-1">사료 통한 수분 섭취</p>
+            <p class="text-4xl font-black text-[#38a8c5]">${총수분_ml}<span class="text-base font-bold text-gray-400 ml-1">ml</span></p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs text-gray-400">권장 범위</p>
+            <p class="text-sm font-black text-gray-600">${권장_최소}–${권장_최대} ml</p>
+            <p class="text-xs text-gray-300">체중 ${weight}kg 기준</p>
+          </div>
+        </div>
+        <!-- 게이지 바 -->
+        <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+          <div class="h-3 rounded-full transition-all duration-500"
+            style="width:${gaugeWidth}%; background:${gaugeColor};"></div>
+        </div>
+        <div class="flex justify-between text-[10px] text-gray-300 font-bold">
+          <span>0ml</span>
+          <span class="font-black" style="color:${gaugeColor}">${충족률}% 충족</span>
+          <span>${권장_최소}ml</span>
+        </div>
+      </div>
+
+      <!-- 상태 메시지 -->
+      <div class="bg-white p-4 rounded-2xl">
+        ${statusMsg}
+      </div>
+
+      <!-- 사료별 수분 기여 -->
+      ${결과목록.length > 0 ? `
+      <div class="space-y-2">
+        ${결과목록.map(s => {
+          const barW = 총수분_ml > 0 ? Math.round((s.water_ml / 총수분_ml) * 100) : 0;
+          const barColor = s.종류 === '습식사료' ? '#4a9af4' : '#f4a44a';
+          return `
+          <div class="bg-white p-4 rounded-2xl">
+            <div class="flex justify-between items-center mb-2">
+              <div>
+                <span class="text-[10px] font-black uppercase" style="color:${barColor}">${s.종류 === '습식사료' ? 'WET' : 'DRY'}</span>
+                <p class="font-bold text-sm text-gray-800">${s.이름}</p>
+              </div>
+              <div class="text-right">
+                <p class="font-black text-gray-900">${s.water_ml}ml</p>
+                <p class="text-xs text-gray-400">${s.수분_pct}% × ${s.급여량_g}g</p>
+              </div>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+              <div class="h-1.5 rounded-full" style="width:${barW}%; background:${barColor};"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+
+      ${제외목록.length ? `<p class="text-xs text-gray-300">※ 수분 데이터 없어 제외: ${제외목록.join(', ')}</p>` : ''}
+
+      <p class="text-xs text-gray-300 leading-relaxed">
+        ※ WSAVA 기준 성묘 권장 수분 44~55ml/kg/day 참고값입니다.<br>
+        ※ 물그릇 음수량은 포함되지 않습니다.
+      </p>
+    </div>`;
+
+  document.getElementById('waterResult').innerHTML = html;
+  document.getElementById('waterResult').classList.remove('hidden');
+  document.getElementById('waterResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+// -----------------------------------------------
+// 이미지 업로드
+// -----------------------------------------------
+function setUploadType(type) {
+  state.uploadType = type;
+  document.getElementById('upDryBtn').className =
+    `flex-1 py-3 rounded-2xl text-sm font-black border-2 ${type==='dry'
+      ? 'border-[#f4a44a] text-[#f4a44a]'
+      : 'border-gray-200 text-gray-400'}`;
+  document.getElementById('upWetBtn').className =
+    `flex-1 py-3 rounded-2xl text-sm font-black border-2 ${type==='wet'
+      ? 'border-[#4a9af4] text-[#4a9af4]'
+      : 'border-gray-200 text-gray-400'}`;
+}
+
+async function handleUpload(input) {
+  if (!input.files?.length) return;
+  const files = Array.from(input.files).slice(0, 5);
+  const msgEl = document.getElementById('uploadMsg');
+  let done = 0, fail = 0;
+
+  msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 0/${files.length} 분석 중...</p>`;
+
+  for (const file of files) {
+    const base64 = await new Promise(res => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result.split(',')[1]);
+      r.readAsDataURL(file);
+    });
+
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'upload',
+          base64Data: base64,
+          mimeType: file.type,
+          fileName: file.name,
+          type: state.uploadType
+        })
+      });
+      const result = await resp.json();
+      if (result.성공) done++;
+      else fail++;
+    } catch { fail++; }
+
+    msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 ${done+fail}/${files.length} 처리 중...</p>`;
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  msgEl.innerHTML = `<p class="text-xs ${fail ? 'text-orange-400' : 'text-green-500'} font-bold mt-2">
+    ${done}개 완료${fail ? ` · ${fail}개 실패` : ''} — 검수 후 목록에 반영됩니다.
+  </p>`;
+  input.value = '';
+}
+</script>
+</body>
+</html>
