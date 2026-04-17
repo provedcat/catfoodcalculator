@@ -66,25 +66,7 @@
     <section class="space-y-6">
       <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
 
-      <!-- 건/습 비율 슬라이더 -->
-      <div class="p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
-        <div class="flex justify-between items-center font-black">
-          <div>
-            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">DRY</p>
-            <p class="text-2xl text-[#f4a44a]"><span id="dryPct">30</span><span class="text-sm">%</span></p>
-          </div>
-          <div class="text-gray-200 text-xl">:</div>
-          <div class="text-right">
-            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">WET</p>
-            <p class="text-2xl text-[#4a9af4]"><span id="wetPct">70</span><span class="text-sm">%</span></p>
-          </div>
-        </div>
-        <input type="range" id="ratioSlider" min="0" max="100" value="30"
-          oninput="updateRatio(this.value)">
-        <div class="flex justify-between text-[10px] text-gray-300 font-bold">
-          <span>← 습식 100%</span><span>건사료 100% →</span>
-        </div>
-      </div>
+      
 
       <!-- 건사료 검색 -->
       <div class="space-y-3">
@@ -149,6 +131,26 @@
       </div>
     </section>
 
+    <!-- 건/습 비율 슬라이더 -->
+      <div class="p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
+        <div class="flex justify-between items-center font-black">
+          <div>
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">DRY</p>
+            <p class="text-2xl text-[#f4a44a]"><span id="dryPct">30</span><span class="text-sm">%</span></p>
+          </div>
+          <div class="text-gray-200 text-xl">:</div>
+          <div class="text-right">
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">WET</p>
+            <p class="text-2xl text-[#4a9af4]"><span id="wetPct">70</span><span class="text-sm">%</span></p>
+          </div>
+        </div>
+        <input type="range" id="ratioSlider" min="0" max="100" value="30"
+          oninput="updateRatio(this.value)">
+        <div class="flex justify-between text-[10px] text-gray-300 font-bold">
+          <span>← 습식 100%</span><span>건사료 100% →</span>
+        </div>
+      </div>
+
     <!-- 계산 버튼 -->
     <button onclick="calculate()"
       class="w-full py-5 bg-[#2d7dd2] text-white font-black text-lg rounded-3xl shadow-lg">
@@ -189,7 +191,7 @@
       <h2 class="text-lg font-black text-gray-700">사료가 없나요?</h2>
       <p class="text-xs text-gray-400 leading-relaxed">
         영양성분표가 모두 보이는 사진 <strong>1장</strong>을 올려주세요.<br>
-        앞면·뒷면 등 여러 장이 필요한 경우 각각 업로드해주세요.
+        1장 안에 제품명과 영양성분, 성분이 모두 표시되어야 합니다.
       </p>
       <div class="flex gap-2">
         <button onclick="setUploadType('dry')" id="upDryBtn"
