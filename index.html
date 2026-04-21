@@ -818,8 +818,9 @@ async function handleUpload(input) {
     });
 
     try {
-      const resp = await fetch(APPS_SCRIPT_URL, {
+      await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
+        mode: 'no-cors',
         body: JSON.stringify({
           action: 'upload',
           base64Data: base64,
@@ -828,9 +829,7 @@ async function handleUpload(input) {
           type: state.uploadType
         })
       });
-      const result = await resp.json();
-      if (result.성공) done++;
-      else fail++;
+      done++;
     } catch { fail++; }
 
     msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 ${done + fail}/${files.length} 처리 중...</p>`;
@@ -842,10 +841,7 @@ async function handleUpload(input) {
     finalMsg += `<p class="text-xs text-green-500 font-bold mt-1">✅ ${done}개 전송 완료 — 검수 후 목록에 반영됩니다.</p>`;
   }
   if (fail > 0) {
-    const isUrlMissing = APPS_SCRIPT_URL.includes('여기에_배포URL');
-    finalMsg += isUrlMissing
-      ? `<p class="text-xs text-red-400 font-bold mt-1">❌ Apps Script 배포 URL이 설정되지 않았습니다.</p>`
-      : `<p class="text-xs text-red-400 font-bold mt-1">❌ ${fail}개 전송 실패 — 네트워크 오류이거나 서버 문제일 수 있어요.</p>`;
+    finalMsg += `<p class="text-xs text-red-400 font-bold mt-1">❌ ${fail}개 전송 실패 — 네트워크 연결을 확인해주세요.</p>`;
   }
   msgEl.innerHTML = finalMsg;
   input.value = '';
