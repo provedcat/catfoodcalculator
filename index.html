@@ -28,18 +28,20 @@
     <!-- 1단계: 고양이 정보 -->
     <section class="space-y-4">
       <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
-      <div class="flex flex-wrap gap-3">
+      <div class="flex gap-3">
         <input type="text" id="catName" placeholder="고양이 이름"
-          class="flex-1 min-w-[140px] p-4 bg-gray-50 rounded-2xl font-bold border border-gray-100">
-        <div class="relative flex-1 min-w-[100px]">
+          class="flex-1 p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
+        <div class="relative w-32">
           <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
-            class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
+            class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
           <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
         </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
         <input type="date" id="catBirth"
-          class="flex-1 min-w-[140px] p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
         <select id="catNeutered"
-          class="flex-1 min-w-[100px] p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+          class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
           <option value="true">중성화 O</option>
           <option value="false">중성화 X</option>
         </select>
@@ -187,7 +189,7 @@
       <h2 class="text-lg font-black text-gray-700">사료가 없나요?</h2>
       <p class="text-xs text-gray-400 leading-relaxed">
         영양성분표가 모두 보이는 사진 <strong>1장</strong>을 올려주세요.<br>
-        여러 장이 필요한 경우 한장에 합쳐서 업로드해주세요.
+        여러 장으로 나눠진 경우 경우 <strong>한 장으로 만들어</strong> 업로드해주세요.
       </p>
       <div class="flex gap-2">
         <button onclick="setUploadType('dry')" id="upDryBtn"
@@ -203,9 +205,9 @@
         <div class="w-full py-6 border-2 border-dashed border-gray-200 rounded-2xl text-center cursor-pointer hover:border-[#2d7dd2] transition-colors">
           <p class="text-2xl mb-1">📷</p>
           <p class="text-sm font-bold text-gray-400">사진을 선택하세요</p>
-          <p class="text-xs text-gray-300 mt-1">JPG, PNG · 최대 5장 · 10MB 이하</p>
+          <p class="text-xs text-gray-300 mt-1">JPG, PNG · 1장 · 10MB 이하</p>
         </div>
-        <input type="file" id="uploadInput" accept="image/*" multiple class="hidden"
+        <input type="file" id="uploadInput" accept="image/*" class="hidden"
           onchange="handleUpload(this)">
       </label>
       <div id="uploadMsg"></div>
@@ -804,46 +806,38 @@ function setUploadType(type) {
 
 async function handleUpload(input) {
   if (!input.files?.length) return;
-  const files = Array.from(input.files).slice(0, 5);
+  const file  = input.files[0]; // 1장만
   const msgEl = document.getElementById('uploadMsg');
-  let done = 0, fail = 0;
 
-  msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 0/${files.length} 분석 중...</p>`;
+  msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 분석 중... 잠시 기다려주세요</p>`;
 
-  for (const file of files) {
-    const base64 = await new Promise(res => {
-      const r = new FileReader();
-      r.onload = e => res(e.target.result.split(',')[1]);
-      r.readAsDataURL(file);
+  const base64 = await new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.readAsDataURL(file);
+  });
+
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'upload',
+        base64Data: base64,
+        mimeType: file.type,
+        fileName: file.name,
+        type: state.uploadType
+      })
     });
-
-    try {
-      await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          action: 'upload',
-          base64Data: base64,
-          mimeType: file.type,
-          fileName: file.name,
-          type: state.uploadType
-        })
-      });
-      done++;
-    } catch { fail++; }
-
-    msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 ${done + fail}/${files.length} 처리 중...</p>`;
-    await new Promise(r => setTimeout(r, 2000));
+    const result = await resp.json();
+    if (result.성공) {
+      msgEl.innerHTML = `<p class="text-xs text-green-500 font-bold mt-2">✅ 전송 완료 — 검수 후 목록에 반영됩니다.</p>`;
+    } else {
+      msgEl.innerHTML = `<p class="text-xs text-orange-400 font-bold mt-2">⚠️ 실패: ${result.오류 || '알 수 없는 오류'}</p>`;
+    }
+  } catch (err) {
+    msgEl.innerHTML = `<p class="text-xs text-red-400 font-bold mt-2">❌ 오류: 네트워크 문제 또는 서버 응답 없음</p>`;
   }
 
-  let finalMsg = '';
-  if (done > 0) {
-    finalMsg += `<p class="text-xs text-green-500 font-bold mt-1">✅ ${done}개 전송 완료 — 검수 후 목록에 반영됩니다.</p>`;
-  }
-  if (fail > 0) {
-    finalMsg += `<p class="text-xs text-red-400 font-bold mt-1">❌ ${fail}개 전송 실패 — 네트워크 연결을 확인해주세요.</p>`;
-  }
-  msgEl.innerHTML = finalMsg;
   input.value = '';
 }
 </script>
