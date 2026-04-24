@@ -1251,26 +1251,49 @@ async function shareCard_save() {
   btn.textContent = '⏳ 생성 중...';
   btn.disabled = true;
 
+  const card = document.getElementById('shareCard');
+
+  // 캡처 전: 고정 크기로 강제 지정
+  const prevStyle = card.getAttribute('style') || '';
+  card.style.cssText = `
+    width: 360px !important;
+    height: 640px !important;
+    aspect-ratio: unset !important;
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+  `;
+
+  // 브라우저 레이아웃 반영 대기
+  await new Promise(r => setTimeout(r, 100));
+
   try {
-    const canvas = await html2canvas(document.getElementById('shareCard'), {
-      scale:           3,       // 3배 고해상도 출력
-      useCORS:         true,
-      backgroundColor: null,
-      logging:         false
+    const canvas = await html2canvas(card, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#0d1e36',
+      logging: false,
+      width: 360,
+      height: 640,
+      windowWidth: 360,
+      windowHeight: 640
     });
 
-    const link    = document.createElement('a');
+    const link = document.createElement('a');
     const catName = document.getElementById('catName').value || 'cat';
     link.download = `provedcat_${catName}.png`;
-    link.href     = canvas.toDataURL('image/png');
+    link.href = canvas.toDataURL('image/png');
     link.click();
 
   } catch (err) {
     alert('이미지 저장 실패: ' + err.message);
   }
 
+  // 캡처 후: 원래 스타일 복원
+  card.setAttribute('style', prevStyle);
+
   btn.textContent = 원래텍스트;
-  btn.disabled    = false;
+  btn.disabled = false;
 }
 
 // -----------------------------------------------
