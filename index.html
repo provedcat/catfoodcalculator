@@ -28,15 +28,13 @@
     <!-- 1단계: 고양이 정보 -->
     <section class="space-y-4">
       <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
-      <div class="flex gap-3">
-        <input type="text" id="catName" placeholder="고양이 이름"
-          class="flex-1 p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
-        <div class="relative w-32 flex-shrink-0">
-          <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
-            class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
-          <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
-        </div>
-      </div>
+      <input type="text" id="catName" placeholder="고양이 이름"
+  class="w-full p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
+<div class="relative">
+  <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
+    class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
+  <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
+</div>
       <div class="grid grid-cols-2 gap-3">
         <input type="date" id="catBirth"
           class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
