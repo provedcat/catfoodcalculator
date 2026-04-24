@@ -516,7 +516,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAjl2G-xZnbjiwt1JptMKLXSSDit6dgyOmpYoA84ViqhAUOx4YGtZkOptCgD7lQTECRw/exec';
 
 // ✅ 카카오 앱 키 — developers.kakao.com 에서 발급 후 입력
-const KAKAO_APP_KEY = 'YOUR_KAKAO_JS_KEY';
+const KAKAO_APP_KEY = '84608b6cbda6b385c0f1c95aefb5c3be';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -545,7 +545,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // 카카오 SDK 초기화
-  if (typeof Kakao !== 'undefined' && KAKAO_APP_KEY !== 'YOUR_KAKAO_JS_KEY') {
+  if (typeof Kakao !== 'undefined' && KAKAO_APP_KEY !== '84608b6cbda6b385c0f1c95aefb5c3be') {
     Kakao.init(KAKAO_APP_KEY);
   }
 });
