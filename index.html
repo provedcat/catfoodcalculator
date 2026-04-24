@@ -501,7 +501,7 @@
     <!-- 저장 / 카카오 공유 버튼 -->
     <div class="share-btn-row">
       <button class="share-btn-save"  onclick="shareCard_save()">📥 이미지 저장</button>
-      <button class="share-btn-kakao" onclick="shareCard_kakao()">💬 카카오 공유</button>
+      <button class="share-btn-kakao" onclick="shareCard_kakao()">📤 이미지 공유하기</button>
     </div>
 
   </div>
@@ -1297,53 +1297,73 @@ async function shareCard_save() {
 }
 
 // -----------------------------------------------
-// 카카오톡 공유
+// 이미지 공유
 // 앱 키 설정 전: 링크 복사로 대체
 // 앱 키 설정 후: 카카오 피드 공유
 // -----------------------------------------------
-function shareCard_kakao() {
-  if (KAKAO_APP_KEY === '84608b6cbda6b385c0f1c95aefb5c3be') {
-    // 앱 키 미설정 → URL 복사
-    const url = 'https://provedcat.github.io/catfoodcalculator';
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(() => {
-        alert('링크가 복사되었습니다!\n카카오톡에 붙여넣기 해주세요 😺');
+async function shareCard_kakao() {
+  const btn = document.querySelector('.share-btn-kakao');
+  const 원래텍스트 = btn.textContent;
+  btn.textContent = '⏳ 이미지 생성 중...';
+  btn.disabled = true;
+
+  const card = document.getElementById('shareCard');
+  const prevStyle = card.getAttribute('style') || '';
+  card.style.cssText = `
+    width: 360px !important;
+    height: 640px !important;
+    aspect-ratio: unset !important;
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+  `;
+
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    const canvas = await html2canvas(card, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#0d1e36',
+      logging: false,
+      width: 360,
+      height: 640,
+      windowWidth: 360,
+      windowHeight: 640
+    });
+
+    card.setAttribute('style', prevStyle);
+
+    // Blob으로 변환
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    const catName = document.getElementById('catName').value || 'cat';
+    const file = new File([blob], `provedcat_${catName}.png`, { type: 'image/png' });
+
+    // Web Share API (모바일 기기 공유 시트 — 카카오톡 포함)
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `${catName}의 급여 플랜`,
+        text: `ProvedCat으로 계산한 ${catName}의 하루 급여 플랜이에요 🐱`
       });
     } else {
-      alert('공유 주소:\n' + url);
+      // Web Share API 미지원 환경(PC 등) → 이미지 다운로드로 대체
+      const link = document.createElement('a');
+      link.download = `provedcat_${catName}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      alert('PC에서는 이미지를 저장 후 카카오톡에 직접 올려주세요 😺');
     }
-    return;
+
+  } catch (err) {
+    card.setAttribute('style', prevStyle);
+    if (err.name !== 'AbortError') {
+      alert('공유 실패: ' + err.message);
+    }
   }
 
-  if (typeof Kakao === 'undefined') {
-    alert('카카오 SDK 로드 중입니다. 잠시 후 다시 눌러주세요.');
-    return;
-  }
-
-  if (!Kakao.isInitialized()) Kakao.init(KAKAO_APP_KEY);
-
-  const catName = document.getElementById('catName').value || '내 고양이';
-  const der     = state.lastResult?.DER || 0;
-
-  Kakao.Share.sendDefault({
-    objectType: 'feed',
-    content: {
-      title:       `${catName}의 오늘 급여 플랜 🐱`,
-      description: `하루 권장 칼로리 ${der} kcal — ProvedCat으로 계산했어요`,
-      imageUrl:    'https://provedcat.github.io/catfoodcalculator/icon-512.png',
-      link: {
-        mobileWebUrl: 'https://provedcat.github.io/catfoodcalculator',
-        webUrl:       'https://provedcat.github.io/catfoodcalculator'
-      }
-    },
-    buttons: [{
-      title: '나도 계산해보기',
-      link: {
-        mobileWebUrl: 'https://provedcat.github.io/catfoodcalculator',
-        webUrl:       'https://provedcat.github.io/catfoodcalculator'
-      }
-    }]
-  });
+  btn.textContent = 원래텍스트;
+  btn.disabled = false;
 }
 </script>
 </body>
