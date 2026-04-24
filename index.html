@@ -6,6 +6,10 @@
   <title>ProvedCat - 고양이 영양 설계</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- ✅ html2canvas: 카드 이미지 캡처용 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- ✅ 카카오톡 공유 SDK -->
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
   <style>
     :root { --brand:#2d7dd2; --dry:#f4a44a; --wet:#4a9af4; }
     body { font-size:16px; background:#f3f4f6; word-break:keep-all; font-family:-apple-system,sans-serif; }
@@ -13,6 +17,198 @@
     input[type=range] { -webkit-appearance:none; background:#e5e7eb; height:8px; border-radius:4px; width:100%; }
     input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; background:var(--brand); border-radius:50%; cursor:pointer; border:4px solid white; box-shadow:0 2px 4px rgba(0,0,0,.15); }
     .autocomplete-item:hover { background:#f0f7ff; }
+
+    /* -----------------------------------------------
+       공유 카드 모달 스타일
+       역할: 결과 이미지 카드를 보여주는 전체화면 레이어
+    ----------------------------------------------- */
+    #shareModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,0.8);
+      overflow-y: auto;
+      padding: 24px 16px 48px;
+      -webkit-overflow-scrolling: touch;
+    }
+    #shareModal.open { display: block; }
+
+    /* 모달 내부 컨텐츠 박스 */
+    .share-modal-inner {
+      max-width: 360px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* 닫기 버튼 */
+    .share-close-btn {
+      align-self: flex-end;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* -----------------------------------------------
+       공유 카드 본체 (9:16 비율 — 스토리 형태)
+       역할: 이 div 전체가 png 이미지로 캡처됩니다
+    ----------------------------------------------- */
+    #shareCard {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      background: #0d1e36;
+      border-radius: 22px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, sans-serif;
+    }
+
+    /* 배경 장식 그라데이션 원 */
+    #shareCard::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(45,125,210,0.22) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    #shareCard::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(74,154,244,0.12) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* 카드 헤더: 브랜드명 + 고양이 이름 */
+    .sc-header {
+      padding: 26px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+    }
+    .sc-brand { font-size:14px; font-weight:900; color:#5ba3e8; font-style:italic; letter-spacing:-0.02em; }
+    .sc-cat-name { font-size:22px; font-weight:900; color:#fff; line-height:1.1; text-align:right; letter-spacing:-0.03em; }
+    .sc-cat-sub { font-size:10px; color:rgba(255,255,255,0.38); text-align:right; margin-top:3px; font-weight:700; }
+
+    /* 칼로리 블록 */
+    .sc-kcal-block {
+      padding: 18px 24px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .sc-kcal-label { font-size:9px; font-weight:900; color:#5ba3e8; letter-spacing:0.18em; margin-bottom:4px; }
+    .sc-kcal-row { display:flex; align-items:flex-end; justify-content:space-between; }
+    .sc-kcal-num { font-size:54px; font-weight:900; color:#fff; line-height:1; letter-spacing:-0.04em; }
+    .sc-kcal-unit { font-size:12px; color:rgba(255,255,255,0.35); font-weight:700; margin-bottom:4px; }
+    .sc-ratio-wrap { display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+    .sc-ratio-bar { width:84px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; display:flex; }
+    .sc-dry-seg { background:#f4a44a; }
+    .sc-wet-seg { background:#4a9af4; flex:1; }
+    .sc-ratio-txt { font-size:9px; font-weight:900; color:rgba(255,255,255,0.3); letter-spacing:0.07em; }
+
+    /* 사료 급여량 목록 */
+    .sc-feeds {
+      padding: 14px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .sc-feeds-title { font-size:9px; font-weight:900; color:rgba(255,255,255,0.25); letter-spacing:0.15em; margin-bottom:2px; }
+    .sc-feed-row {
+      display:flex; align-items:center; gap:9px;
+      padding:10px 12px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.07);
+      border-radius:13px;
+    }
+    .sc-feed-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .sc-feed-info { flex:1; min-width:0; }
+    .sc-feed-type { font-size:8px; font-weight:900; letter-spacing:0.12em; opacity:0.45; color:#fff; }
+    .sc-feed-name { font-size:11px; font-weight:700; color:rgba(255,255,255,0.85); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+    .sc-feed-right { text-align:right; flex-shrink:0; }
+    .sc-feed-g { font-size:20px; font-weight:900; color:#fff; line-height:1; letter-spacing:-0.03em; }
+    .sc-feed-kcal { font-size:9px; color:rgba(255,255,255,0.3); font-weight:700; }
+
+    /* 영양 분석 섹션 */
+    .sc-analysis {
+      padding: 12px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      position: relative;
+      flex: 1;
+    }
+    .sc-analysis-title { font-size:9px; font-weight:900; color:rgba(255,255,255,0.25); letter-spacing:0.15em; }
+    .sc-an-card {
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.07);
+      border-radius:14px;
+      padding:12px 14px;
+    }
+    .sc-an-label { font-size:9px; font-weight:900; color:rgba(255,255,255,0.3); letter-spacing:0.1em; margin-bottom:5px; }
+    .sc-an-main-row { display:flex; align-items:flex-end; justify-content:space-between; }
+    .sc-an-val { font-size:24px; font-weight:900; line-height:1; letter-spacing:-0.03em; }
+    .sc-an-sub { font-size:10px; font-weight:700; margin-top:4px; }
+
+    /* Ca:P 칼슘/인 용량 상세 */
+    .sc-cap-detail { display:flex; gap:10px; margin-top:8px; }
+    .sc-cap-item { flex:1; background:rgba(255,255,255,0.05); border-radius:9px; padding:7px 9px; text-align:center; }
+    .sc-cap-item-label { font-size:8px; font-weight:900; color:rgba(255,255,255,0.3); letter-spacing:0.1em; }
+    .sc-cap-item-val { font-size:15px; font-weight:900; color:#fff; margin-top:2px; line-height:1; }
+    .sc-cap-item-unit { font-size:8px; color:rgba(255,255,255,0.3); font-weight:700; }
+
+    /* 수분 게이지 */
+    .sc-water-gauge-track { width:100%; height:7px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden; margin-top:7px; }
+    .sc-water-gauge-fill { height:7px; border-radius:4px; }
+    .sc-water-nums { display:flex; justify-content:space-between; margin-top:4px; font-size:8px; font-weight:700; color:rgba(255,255,255,0.25); }
+
+    /* 상태 색상 */
+    .color-ok   { color: #4ade80; }
+    .color-warn { color: #fbbf24; }
+
+    /* 카드 푸터 */
+    .sc-footer {
+      padding: 10px 24px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      position: relative;
+    }
+    .sc-footer-url { font-size:9px; font-weight:900; color:rgba(255,255,255,0.2); letter-spacing:0.04em; }
+    .sc-footer-date { font-size:9px; font-weight:700; color:rgba(255,255,255,0.2); }
+
+    /* 저장/공유 버튼 */
+    .share-btn-row { display:flex; gap:10px; }
+    .share-btn-save {
+      flex:1; padding:15px;
+      background:#2d7dd2; color:#fff;
+      font-size:14px; font-weight:900;
+      border:none; border-radius:16px; cursor:pointer;
+    }
+    .share-btn-kakao {
+      flex:1; padding:15px;
+      background:#FEE500; color:#3C1E1E;
+      font-size:14px; font-weight:900;
+      border:none; border-radius:16px; cursor:pointer;
+    }
+    .share-btn-save:active, .share-btn-kakao:active { opacity:0.8; }
   </style>
 </head>
 <body class="flex justify-center">
@@ -29,12 +225,12 @@
     <section class="space-y-4">
       <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
       <input type="text" id="catName" placeholder="고양이 이름"
-  class="w-full p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
-<div class="relative">
-  <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
-    class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
-  <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
-</div>
+        class="w-full p-5 bg-gray-50 rounded-2xl font-bold border border-gray-100">
+      <div class="relative">
+        <input type="number" id="catWeight" placeholder="0.0" step="0.1" min="0.5" max="20"
+          class="w-full p-5 bg-gray-50 rounded-2xl font-bold text-right pr-10 border border-gray-100">
+        <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">kg</span>
+      </div>
       <div class="grid grid-cols-2 gap-3">
         <input type="date" id="catBirth"
           class="p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
@@ -51,8 +247,6 @@
           <p class="text-xs text-gray-400">계산값에서 10% 추가 차감</p>
         </div>
       </label>
-
-      <!-- 칼로리 표시 -->
       <div id="calBox" class="hidden p-6 bg-blue-50 rounded-2xl text-center">
         <p class="text-xs font-bold text-blue-400 mb-1">하루 필요 칼로리</p>
         <p class="text-4xl font-black text-[#2d7dd2]" id="derVal">0</p>
@@ -63,8 +257,6 @@
     <!-- 2단계: 식단 구성 -->
     <section class="space-y-6">
       <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
-
-      <!-- 건/습 비율 슬라이더 -->
       <div class="p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
         <div class="flex justify-between items-center font-black">
           <div>
@@ -77,8 +269,7 @@
             <p class="text-2xl text-[#4a9af4]"><span id="wetPct">70</span><span class="text-sm">%</span></p>
           </div>
         </div>
-        <input type="range" id="ratioSlider" min="0" max="100" value="30"
-          oninput="updateRatio(this.value)">
+        <input type="range" id="ratioSlider" min="0" max="100" value="30" oninput="updateRatio(this.value)">
         <div class="flex justify-between text-[10px] text-gray-300 font-bold">
           <span>← 습식 100%</span><span>건사료 100% →</span>
         </div>
@@ -89,13 +280,10 @@
         <div class="flex justify-between items-center">
           <p class="text-xs font-black text-[#f4a44a] tracking-widest italic">DRY FOOD</p>
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()"
-              class="w-4 h-4 accent-[#f4a44a]">
+            <input type="checkbox" id="drySwitching" onchange="toggleDrySwitching()" class="w-4 h-4 accent-[#f4a44a]">
             <span class="text-xs font-bold text-gray-400">교체 중</span>
           </label>
         </div>
-
-        <!-- 건사료 1 -->
         <div class="relative">
           <div class="flex items-center bg-orange-50 rounded-2xl border border-orange-100 overflow-hidden">
             <input type="text" id="dryInput1" placeholder="건사료 검색..."
@@ -108,13 +296,9 @@
               <span class="text-xs font-black text-orange-400">%</span>
             </div>
           </div>
-          <div id="dryList1"
-            class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
-          </div>
+          <div id="dryList1" class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden"></div>
           <p id="drySelected1" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
         </div>
-
-        <!-- 건사료 2 (교체 중일 때) -->
         <div id="dryArea2" class="hidden relative">
           <div class="flex items-center bg-orange-50 rounded-2xl border border-dashed border-orange-200 overflow-hidden">
             <input type="text" id="dryInput2" placeholder="새 건사료 검색..."
@@ -127,9 +311,7 @@
               <span class="text-xs font-black text-orange-400">%</span>
             </div>
           </div>
-          <div id="dryList2"
-            class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
-          </div>
+          <div id="dryList2" class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden"></div>
           <p id="drySelected2" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
         </div>
       </div>
@@ -153,7 +335,7 @@
       급여량 계산하기
     </button>
 
-    <!-- 결과 -->
+    <!-- 결과 영역 -->
     <div id="resultArea" class="hidden space-y-4">
       <div class="p-6 bg-gray-900 rounded-3xl text-white text-center">
         <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Daily Feeding Plan</p>
@@ -164,22 +346,24 @@
       <p class="text-xs text-gray-300 text-center leading-relaxed">
         ※ 참고용 계산값입니다. 질환이 있는 경우 수의사와 상담하세요.
       </p>
+
+      <!-- ✅ 이미지 저장 버튼 — 결과 바로 아래 -->
+      <button onclick="openShareModal()"
+        class="w-full py-4 bg-gray-800 text-white font-black text-base rounded-2xl flex items-center justify-center gap-2">
+        🖼️ 결과 이미지 저장 / 공유
+      </button>
     </div>
 
     <!-- 칼슘/인 분석 버튼 -->
     <button id="capBtn" onclick="analyzeCaP()" class="hidden w-full py-5 bg-[#5a9e6f] text-white font-black text-lg rounded-3xl shadow-lg">
       📊 칼슘 · 인 분석하기
     </button>
-
-    <!-- 칼슘/인 결과 -->
     <div id="capResult" class="hidden space-y-3"></div>
 
     <!-- 수분 섭취량 분석 버튼 -->
     <button id="waterBtn" onclick="analyzeWater()" class="hidden w-full py-5 bg-[#38a8c5] text-white font-black text-lg rounded-3xl shadow-lg">
       💧 수분 섭취량 분석하기
     </button>
-
-    <!-- 수분 섭취량 결과 -->
     <div id="waterResult" class="hidden space-y-3"></div>
 
     <!-- 사료 추가 업로드 -->
@@ -187,7 +371,7 @@
       <h2 class="text-lg font-black text-gray-700">사료가 없나요?</h2>
       <p class="text-xs text-gray-400 leading-relaxed">
         영양성분표가 모두 보이는 사진 <strong>1장</strong>을 올려주세요.<br>
-        여러 장으로 나눠진 경우 경우 <strong>한 장으로 만들어</strong> 업로드해주세요.
+        여러 장으로 나눠진 경우 <strong>한 장으로 만들어</strong> 업로드해주세요.
       </p>
       <div class="flex gap-2">
         <button onclick="setUploadType('dry')" id="upDryBtn"
@@ -205,13 +389,122 @@
           <p class="text-sm font-bold text-gray-400">사진을 선택하세요</p>
           <p class="text-xs text-gray-300 mt-1">JPG, PNG · 1장 · 10MB 이하</p>
         </div>
-        <input type="file" id="uploadInput" accept="image/*" class="hidden"
-          onchange="handleUpload(this)">
+        <input type="file" id="uploadInput" accept="image/*" class="hidden" onchange="handleUpload(this)">
       </label>
       <div id="uploadMsg"></div>
     </section>
 
   </main>
+</div>
+
+<!-- -----------------------------------------------
+  공유 카드 모달
+  역할: 결과를 9:16 이미지로 보여주고 저장/공유 제공
+  이 div는 body 끝에 위치 — 다른 요소 위에 fixed로 떠 있음
+----------------------------------------------- -->
+<div id="shareModal">
+  <div class="share-modal-inner">
+
+    <!-- 닫기 버튼 -->
+    <button class="share-close-btn" onclick="closeShareModal()">✕</button>
+
+    <!-- 캡처 대상 카드 -->
+    <div id="shareCard">
+
+      <!-- 헤더 -->
+      <div class="sc-header">
+        <div class="sc-brand">ProvedCat</div>
+        <div>
+          <div class="sc-cat-name" id="sc_catName">—</div>
+          <div class="sc-cat-sub"  id="sc_catSub">—</div>
+        </div>
+      </div>
+
+      <!-- 하루 칼로리 + DRY/WET 비율 -->
+      <div class="sc-kcal-block">
+        <div class="sc-kcal-label">DAILY CALORIES</div>
+        <div class="sc-kcal-row">
+          <div>
+            <span class="sc-kcal-num" id="sc_der">—</span>
+            <div class="sc-kcal-unit">kcal / day</div>
+          </div>
+          <div class="sc-ratio-wrap">
+            <div class="sc-ratio-bar">
+              <div class="sc-dry-seg" id="sc_drySeg" style="width:30%"></div>
+              <div class="sc-wet-seg"></div>
+            </div>
+            <div class="sc-ratio-txt" id="sc_ratioTxt">DRY 30% · WET 70%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 사료별 급여량 -->
+      <div class="sc-feeds">
+        <div class="sc-feeds-title">FEEDING PLAN</div>
+        <div id="sc_feedList"></div>
+      </div>
+
+      <!-- 영양 분석 -->
+      <div class="sc-analysis">
+        <div class="sc-analysis-title">NUTRITION ANALYSIS</div>
+
+        <!-- Ca:P 비율 카드 -->
+        <div class="sc-an-card">
+          <div class="sc-an-label">Ca : P 비율</div>
+          <div class="sc-an-main-row">
+            <div class="sc-an-val" id="sc_capRatio">—</div>
+            <div class="sc-an-sub" id="sc_capStatus"></div>
+          </div>
+          <!-- 칼슘/인 용량 상세 -->
+          <div class="sc-cap-detail">
+            <div class="sc-cap-item">
+              <div class="sc-cap-item-label">칼슘 섭취</div>
+              <div class="sc-cap-item-val" id="sc_ca">—</div>
+              <div class="sc-cap-item-unit">mg / day</div>
+            </div>
+            <div class="sc-cap-item">
+              <div class="sc-cap-item-label">인 섭취</div>
+              <div class="sc-cap-item-val" id="sc_p">—</div>
+              <div class="sc-cap-item-unit">mg / day</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 수분 섭취 카드 -->
+        <div class="sc-an-card">
+          <div class="sc-an-label">수분 섭취</div>
+          <div class="sc-an-main-row">
+            <!-- 섭취량(ml) -->
+            <div class="sc-an-val" id="sc_waterMl">—</div>
+            <!-- 충족률(%) -->
+            <div class="sc-an-sub" id="sc_waterPct">—</div>
+          </div>
+          <!-- 게이지 바: 섭취량 / 최소 권장량 비율 시각화 -->
+          <div class="sc-water-gauge-track">
+            <div class="sc-water-gauge-fill" id="sc_waterGauge" style="width:0%"></div>
+          </div>
+          <div class="sc-water-nums">
+            <span>0 ml</span>
+            <span id="sc_waterRange">권장 —</span>
+          </div>
+          <div class="sc-an-sub" id="sc_waterStatus" style="margin-top:5px">—</div>
+        </div>
+      </div>
+
+      <!-- 카드 푸터 -->
+      <div class="sc-footer">
+        <div class="sc-footer-url">provedcat.github.io/catfoodcalculator</div>
+        <div class="sc-footer-date" id="sc_date"></div>
+      </div>
+    </div>
+
+    <!-- 저장 / 카카오 공유 버튼 -->
+    <div class="share-btn-row">
+      <button class="share-btn-save"  onclick="shareCard_save()">📥 이미지 저장</button>
+      <button class="share-btn-kakao" onclick="shareCard_kakao()">💬 카카오 공유</button>
+    </div>
+
+  </div>
 </div>
 
 <script>
@@ -222,21 +515,19 @@ const SUPABASE_URL  = 'https://qpklvtgnhrdmzxzlstpp.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwa2x2dGduaHJkbXp4emxzdHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NjE1MjIsImV4cCI6MjA5MTUzNzUyMn0.6nI4uEp9H9gVn3Sjm4Qhs5XXFvhUhfGBf6e0Nqce1EM';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAjl2G-xZnbjiwt1JptMKLXSSDit6dgyOmpYoA84ViqhAUOx4YGtZkOptCgD7lQTECRw/exec';
 
+// ✅ 카카오 앱 키 — developers.kakao.com 에서 발급 후 입력
+const KAKAO_APP_KEY = 'YOUR_KAKAO_JS_KEY';
+
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // -----------------------------------------------
 // 전역 상태
 // -----------------------------------------------
 let state = {
-  // 건사료: 슬롯 고정 인덱스 0/1
   dryFeeds: [null, null],
-
-  // 습식사료: slotId → feedData 맵
-  // 배열 인덱스 방식을 버리고 고유 ID 맵으로 관리 → 삭제/추가해도 꼬임 없음
-  wetFeedMap: {},       // { [slotId]: { name, display, kcal, ebCa, ebP, moisture } }
-  wetSlotIdCounter: 0,  // 단조 증가 ID (재사용 없음)
-  wetSlotIds: [],       // 현재 살아있는 슬롯 ID 목록 (순서 보존)
-
+  wetFeedMap: {},
+  wetSlotIdCounter: 0,
+  wetSlotIds: [],
   uploadType: 'dry',
   lastResult: null
 };
@@ -245,13 +536,18 @@ let state = {
 // 앱 시작
 // -----------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
-  addWetSlot(); // 첫 번째 습식 슬롯 생성
+  addWetSlot();
 
   ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('change', updateCalorie);
     if (id === 'catWeight') el.addEventListener('input', updateCalorie);
   });
+
+  // 카카오 SDK 초기화
+  if (typeof Kakao !== 'undefined' && KAKAO_APP_KEY !== 'YOUR_KAKAO_JS_KEY') {
+    Kakao.init(KAKAO_APP_KEY);
+  }
 });
 
 // -----------------------------------------------
@@ -268,8 +564,7 @@ function updateCalorie() {
                + (today.getMonth() - birth.getMonth());
   const neutered = document.getElementById('catNeutered').value === 'true';
   const diet     = document.getElementById('isDiet').checked;
-
-  const RER = 70 * Math.pow(weight, 0.75);
+  const RER      = 70 * Math.pow(weight, 0.75);
   let f_age, label;
 
   if      (months < 4)    { f_age = 2.75; label = '초기 성장기'; }
@@ -321,7 +616,6 @@ function toggleDrySwitching() {
 
 // -----------------------------------------------
 // 습식사료 슬롯 추가
-// ★ 핵심 수정: slotId 고유 ID 맵 방식으로 인덱스 꼬임 완전 해결
 // -----------------------------------------------
 function addWetSlot() {
   if (state.wetSlotIds.length >= 3) return;
@@ -334,8 +628,6 @@ function addWetSlot() {
   slot.id        = `wetSlot_${slotId}`;
   slot.className = 'relative';
 
-  // 첫 번째 슬롯: 비율 input·삭제 버튼 없음
-  // 두 번째 이상: 비율 input + 삭제 버튼 표시
   slot.innerHTML = `
     <div class="flex items-center bg-blue-50 rounded-2xl border border-blue-100 overflow-hidden">
       <input type="text" id="wetInput_${slotId}" placeholder="습식사료 검색..."
@@ -358,7 +650,6 @@ function addWetSlot() {
 
   document.getElementById('wetSlots').appendChild(slot);
 
-  // 이벤트 리스너: JS로 직접 등록 (onclick 문자열 사용 안 함 → 특수문자 안전)
   const input = document.getElementById(`wetInput_${slotId}`);
   input.addEventListener('input', () => searchFeed('wet', input.value, `wetList_${slotId}`, slotId));
   input.addEventListener('focus', () => searchFeed('wet', input.value, `wetList_${slotId}`, slotId));
@@ -376,8 +667,7 @@ function removeWetSlot(slotId) {
 }
 
 // -----------------------------------------------
-// 사료 검색 (Supabase 직접 조회)
-// slotId: 건사료 0/1 고정, 습식 고유 ID
+// 사료 검색 (Supabase 조회)
 // -----------------------------------------------
 async function searchFeed(type, query, listId, slotId) {
   const list = document.getElementById(listId);
@@ -409,7 +699,6 @@ async function searchFeed(type, query, listId, slotId) {
     return;
   }
 
-  // data-row 속성으로 인덱스 저장 → onclick 문자열에 데이터 직접 쓰지 않음
   list.innerHTML = data.map((f, rowIdx) => {
     const display = f.제조사 ? `${f.제조사} | ${f.제품명}` : f.제품명;
     return `
@@ -419,11 +708,9 @@ async function searchFeed(type, query, listId, slotId) {
       </div>`;
   }).join('');
 
-  // 검색 결과 캐싱
   list._cache = { data, type, slotId, listId };
   list.classList.remove('hidden');
 
-  // 이벤트 위임으로 클릭 처리
   list.onclick = (e) => {
     const item = e.target.closest('[data-row]');
     if (!item) return;
@@ -434,7 +721,6 @@ async function searchFeed(type, query, listId, slotId) {
 
 // -----------------------------------------------
 // 사료 선택 확정
-// feedData 객체 통째로 받아서 파싱 오류 원천 차단
 // -----------------------------------------------
 function selectFeed(type, slotId, feedData, listId) {
   const feed = {
@@ -447,14 +733,12 @@ function selectFeed(type, slotId, feedData, listId) {
   };
 
   if (type === 'dry') {
-    // 건사료: slotId = 0 또는 1
     state.dryFeeds[slotId] = feed;
     document.getElementById(`dryInput${slotId + 1}`).value = feed.display;
     const sel = document.getElementById(`drySelected${slotId + 1}`);
     sel.textContent = `✓ ${feed.name} (${feed.kcal} kcal/kg)`;
     sel.classList.remove('hidden');
   } else {
-    // 습식: slotId = 고유 wetSlot ID
     state.wetFeedMap[slotId] = feed;
     document.getElementById(`wetInput_${slotId}`).value = feed.display;
     const sel = document.getElementById(`wetSelected_${slotId}`);
@@ -465,7 +749,6 @@ function selectFeed(type, slotId, feedData, listId) {
   document.getElementById(listId)?.classList.add('hidden');
 }
 
-// 외부 클릭 시 검색 목록 닫기
 document.addEventListener('click', e => {
   if (!e.target.closest('.relative')) {
     document.querySelectorAll('[id^="dryList"],[id*="wetList_"]')
@@ -489,9 +772,9 @@ function calculate() {
   const birth  = new Date(birthStr);
   const months = (today.getFullYear() - birth.getFullYear()) * 12
                + (today.getMonth() - birth.getMonth());
-  const neutered  = document.getElementById('catNeutered').value === 'true';
-  const diet      = document.getElementById('isDiet').checked;
-  const RER       = 70 * Math.pow(weight, 0.75);
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+  const RER      = 70 * Math.pow(weight, 0.75);
 
   let f_age;
   if      (months < 4)    f_age = 2.75;
@@ -511,7 +794,7 @@ function calculate() {
   let html = '';
   const resultData = { 건사료_결과: [], 습식사료_결과: [] };
 
-  // ── 건사료 계산 ──
+  // 건사료 계산
   const dryFeeds = switching
     ? state.dryFeeds.filter(Boolean)
     : [state.dryFeeds[0]].filter(Boolean);
@@ -546,27 +829,22 @@ function calculate() {
     });
   });
 
-  // ── 습식사료 계산 ──
-  // wetSlotIds 순서대로, 선택된 것만 사용
+  // 습식사료 계산
   const wetEntries = state.wetSlotIds
     .map(sid => ({ sid, feed: state.wetFeedMap[sid] }))
     .filter(e => e.feed);
   const wetCount = wetEntries.length;
 
   wetEntries.forEach(({ sid, feed: f }) => {
-    // 첫 번째 슬롯(sid === wetSlotIds[0])은 비율 input 없음
     const isFirstWet = (sid === state.wetSlotIds[0]);
     const pctEl = document.getElementById(`wetPct_${sid}`);
 
     let subPct;
     if (wetCount === 1) {
-      // 유일한 습식: 100%
       subPct = 1;
     } else if (!isFirstWet && pctEl) {
-      // 두 번째 이상: input 값 사용
       subPct = (parseInt(pctEl.value) || 0) / 100;
     } else {
-      // 첫 번째 슬롯: 나머지 % 합산 후 역산
       const otherSum = wetEntries.reduce((sum, e) => {
         if (e.sid === sid) return sum;
         const el = document.getElementById(`wetPct_${e.sid}`);
@@ -689,7 +967,6 @@ function analyzeWater() {
   const weight    = parseFloat(document.getElementById('catWeight').value) || 0;
   const 권장_최소 = Math.round(weight * 44);
   const 권장_최대 = Math.round(weight * 55);
-
   const 모든사료 = [
     ...state.lastResult.건사료_결과.map(s => ({ ...s, 종류: '건사료' })),
     ...state.lastResult.습식사료_결과.map(s => ({ ...s, 종류: '습식사료' }))
@@ -709,7 +986,6 @@ function analyzeWater() {
   });
 
   총수분_ml = parseFloat(총수분_ml.toFixed(1));
-
   const ok         = 총수분_ml >= 권장_최소;
   const 부족분     = ok ? 0 : Math.round(권장_최소 - 총수분_ml);
   const 충족률     = 권장_최소 > 0 ? Math.round((총수분_ml / 권장_최소) * 100) : 0;
@@ -741,8 +1017,7 @@ function analyzeWater() {
           </div>
         </div>
         <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-          <div class="h-3 rounded-full transition-all duration-500"
-            style="width:${gaugeWidth}%; background:${gaugeColor};"></div>
+          <div class="h-3 rounded-full transition-all duration-500" style="width:${gaugeWidth}%; background:${gaugeColor};"></div>
         </div>
         <div class="flex justify-between text-[10px] text-gray-300 font-bold">
           <span>0ml</span>
@@ -759,9 +1034,7 @@ function analyzeWater() {
           <div class="bg-white p-4 rounded-2xl">
             <div class="flex justify-between items-center mb-2">
               <div>
-                <span class="text-[10px] font-black uppercase" style="color:${barColor}">
-                  ${s.종류 === '습식사료' ? 'WET' : 'DRY'}
-                </span>
+                <span class="text-[10px] font-black uppercase" style="color:${barColor}">${s.종류 === '습식사료' ? 'WET' : 'DRY'}</span>
                 <p class="font-bold text-sm text-gray-800">${s.이름}</p>
               </div>
               <div class="text-right">
@@ -804,7 +1077,7 @@ function setUploadType(type) {
 
 async function handleUpload(input) {
   if (!input.files?.length) return;
-  const file  = input.files[0]; // 1장만
+  const file  = input.files[0];
   const msgEl = document.getElementById('uploadMsg');
 
   msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 분석 중... 잠시 기다려주세요</p>`;
@@ -839,580 +1112,53 @@ async function handleUpload(input) {
   input.value = '';
 }
 
-<!-- =============================================
-  📌 이 코드를 index.html 의 마지막 </script> 태그 바로 위에 붙여넣으세요.
-  (기존 handleUpload 함수 아래, </script>\n</body> 바로 위)
-  ============================================= -->
-
-<!-- ① html2canvas 라이브러리 (이미지 캡처용) -->
-<!-- <head> 안에 추가하거나, </body> 직전에 추가해도 됩니다 -->
-<!-- 아래 <script src="..."> 줄 1개를 <head> 태그 안 기존 script 줄들 아래에 추가하세요 -->
-<!--
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
--->
-
-<!-- ② 공유 모달 HTML — <main> 바깥, </body> 바로 위에 추가 -->
-<!--
-<div id="shareModal" ...> ... </div>
--->
-<!-- 아래의 JS 블록을 기존 </script> 태그 바로 위에 붙이세요 -->
-
-
-// -----------------------------------------------
+// ===============================================
 // 🖼️ 공유 카드 시스템
-// 역할: 계산 결과를 예쁜 이미지 카드로 만들어서
-//       새 창에 표시하고, 저장하거나 카카오톡으로 공유할 수 있게 합니다.
-// -----------------------------------------------
+// ===============================================
 
 // -----------------------------------------------
-// 공유 모달 HTML을 페이지에 동적으로 삽입
-// (index.html을 건드리지 않고 JS로 DOM에 추가하는 방식 — 유지보수 편리)
-// -----------------------------------------------
-(function 공유모달_생성() {
-  // --- 카카오 SDK 로드 (카카오톡 공유용) ---
-  const kakaoScript = document.createElement('script');
-  kakaoScript.src = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js';
-  kakaoScript.crossOrigin = 'anonymous';
-  document.head.appendChild(kakaoScript);
-
-  // --- html2canvas 로드 (이미지 캡처용) ---
-  const h2cScript = document.createElement('script');
-  h2cScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-  document.head.appendChild(h2cScript);
-
-  // --- 모달 스타일 ---
-  const style = document.createElement('style');
-  style.textContent = `
-    /* 전체 화면을 덮는 반투명 배경 */
-    #shareModal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: rgba(0,0,0,0.75);
-      overflow-y: auto;
-      padding: 24px 16px 40px;
-    }
-    #shareModal.open { display: block; }
-
-    /* 모달 안의 실제 내용 박스 */
-    #shareModal .modal-inner {
-      max-width: 400px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* 닫기 버튼 */
-    #shareModal .close-btn {
-      align-self: flex-end;
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: #fff;
-      font-size: 22px;
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      line-height: 1;
-    }
-
-    /* ── 카드 본체 (9:16 비율) ── */
-    #shareCard {
-      width: 100%;
-      aspect-ratio: 9 / 16;
-      background: #0d1e36;
-      border-radius: 24px;
-      overflow: hidden;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      font-family: -apple-system, 'Noto Sans KR', sans-serif;
-    }
-
-    /* 배경 장식 원 */
-    #shareCard::before {
-      content: '';
-      position: absolute;
-      top: -80px; right: -80px;
-      width: 300px; height: 300px;
-      background: radial-gradient(circle, rgba(45,125,210,0.22) 0%, transparent 70%);
-      border-radius: 50%;
-      pointer-events: none;
-    }
-    #shareCard::after {
-      content: '';
-      position: absolute;
-      bottom: -60px; left: -60px;
-      width: 220px; height: 220px;
-      background: radial-gradient(circle, rgba(74,154,244,0.12) 0%, transparent 70%);
-      border-radius: 50%;
-      pointer-events: none;
-    }
-
-    /* ── 카드 내부 섹션 ── */
-    .sc-header {
-      padding: 28px 26px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      position: relative;
-    }
-    .sc-brand {
-      font-size: 15px;
-      font-weight: 900;
-      color: #5ba3e8;
-      font-style: italic;
-      letter-spacing: -0.02em;
-    }
-    .sc-cat-name {
-      font-size: 24px;
-      font-weight: 900;
-      color: #fff;
-      line-height: 1.1;
-      text-align: right;
-      letter-spacing: -0.03em;
-    }
-    .sc-cat-sub {
-      font-size: 11px;
-      color: rgba(255,255,255,0.38);
-      text-align: right;
-      margin-top: 4px;
-      font-weight: 700;
-    }
-
-    .sc-kcal-block {
-      padding: 20px 26px 18px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      position: relative;
-    }
-    .sc-kcal-label {
-      font-size: 10px;
-      font-weight: 900;
-      color: #5ba3e8;
-      letter-spacing: 0.18em;
-      margin-bottom: 4px;
-    }
-    .sc-kcal-row {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-    }
-    .sc-kcal-num {
-      font-size: 60px;
-      font-weight: 900;
-      color: #fff;
-      line-height: 1;
-      letter-spacing: -0.04em;
-    }
-    .sc-kcal-unit {
-      font-size: 13px;
-      color: rgba(255,255,255,0.35);
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-    .sc-ratio-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 6px;
-    }
-    .sc-ratio-bar {
-      width: 90px;
-      height: 7px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 4px;
-      overflow: hidden;
-      display: flex;
-    }
-    .sc-dry-seg { background: #f4a44a; }
-    .sc-wet-seg  { background: #4a9af4; flex: 1; }
-    .sc-ratio-txt {
-      font-size: 10px;
-      font-weight: 900;
-      color: rgba(255,255,255,0.3);
-      letter-spacing: 0.07em;
-    }
-
-    .sc-feeds {
-      padding: 16px 26px;
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      position: relative;
-    }
-    .sc-feeds-title {
-      font-size: 10px;
-      font-weight: 900;
-      color: rgba(255,255,255,0.25);
-      letter-spacing: 0.15em;
-      margin-bottom: 3px;
-    }
-    .sc-feed-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 11px 13px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 14px;
-    }
-    .sc-feed-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .sc-feed-info { flex: 1; min-width: 0; }
-    .sc-feed-type {
-      font-size: 9px;
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      opacity: 0.45;
-      color: #fff;
-    }
-    .sc-feed-name {
-      font-size: 12px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.85);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-top: 1px;
-    }
-    .sc-feed-right { text-align: right; flex-shrink: 0; }
-    .sc-feed-g {
-      font-size: 22px;
-      font-weight: 900;
-      color: #fff;
-      line-height: 1;
-      letter-spacing: -0.03em;
-    }
-    .sc-feed-kcal {
-      font-size: 10px;
-      color: rgba(255,255,255,0.3);
-      font-weight: 700;
-    }
-
-    /* ── 분석 섹션 ── */
-    .sc-analysis {
-      padding: 14px 26px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      position: relative;
-      flex: 1;
-    }
-    .sc-analysis-title {
-      font-size: 10px;
-      font-weight: 900;
-      color: rgba(255,255,255,0.25);
-      letter-spacing: 0.15em;
-    }
-    .sc-an-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 16px;
-      padding: 13px 16px;
-    }
-    .sc-an-label {
-      font-size: 10px;
-      font-weight: 900;
-      color: rgba(255,255,255,0.3);
-      letter-spacing: 0.1em;
-      margin-bottom: 5px;
-    }
-    .sc-an-main-row {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-    }
-    .sc-an-val {
-      font-size: 26px;
-      font-weight: 900;
-      line-height: 1;
-      letter-spacing: -0.03em;
-    }
-    .sc-an-sub {
-      font-size: 11px;
-      font-weight: 700;
-      margin-top: 5px;
-    }
-    /* Ca:P 상세 */
-    .sc-cap-detail {
-      display: flex;
-      gap: 12px;
-      margin-top: 8px;
-    }
-    .sc-cap-item {
-      flex: 1;
-      background: rgba(255,255,255,0.04);
-      border-radius: 10px;
-      padding: 8px 10px;
-      text-align: center;
-    }
-    .sc-cap-item-label {
-      font-size: 9px;
-      font-weight: 900;
-      color: rgba(255,255,255,0.3);
-      letter-spacing: 0.1em;
-    }
-    .sc-cap-item-val {
-      font-size: 16px;
-      font-weight: 900;
-      color: #fff;
-      margin-top: 2px;
-      line-height: 1;
-    }
-    .sc-cap-item-unit {
-      font-size: 9px;
-      color: rgba(255,255,255,0.3);
-      font-weight: 700;
-    }
-    /* 수분 게이지 */
-    .sc-water-gauge-track {
-      width: 100%;
-      height: 8px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-    .sc-water-gauge-fill {
-      height: 8px;
-      border-radius: 4px;
-      transition: width 0.4s;
-    }
-    .sc-water-nums {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 5px;
-      font-size: 9px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.25);
-    }
-
-    /* 초록/노랑 상태 색상 */
-    .color-ok   { color: #4ade80; }
-    .color-warn { color: #fbbf24; }
-
-    /* 카드 하단 */
-    .sc-footer {
-      padding: 12px 26px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-top: 1px solid rgba(255,255,255,0.05);
-      position: relative;
-    }
-    .sc-footer-url {
-      font-size: 10px;
-      font-weight: 900;
-      color: rgba(255,255,255,0.2);
-      letter-spacing: 0.05em;
-    }
-    .sc-footer-date {
-      font-size: 10px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.2);
-    }
-
-    /* ── 버튼 영역 ── */
-    .share-btn-row {
-      display: flex;
-      gap: 10px;
-    }
-    .share-btn-save {
-      flex: 1;
-      padding: 16px;
-      background: #2d7dd2;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 900;
-      border: none;
-      border-radius: 18px;
-      cursor: pointer;
-    }
-    .share-btn-kakao {
-      flex: 1;
-      padding: 16px;
-      background: #FEE500;
-      color: #3C1E1E;
-      font-size: 15px;
-      font-weight: 900;
-      border: none;
-      border-radius: 18px;
-      cursor: pointer;
-    }
-    .share-btn-save:active,
-    .share-btn-kakao:active { opacity: 0.8; }
-  `;
-  document.head.appendChild(style);
-
-  // --- 모달 HTML 구조 삽입 ---
-  const modal = document.createElement('div');
-  modal.id = 'shareModal';
-  modal.innerHTML = `
-    <div class="modal-inner">
-      <button class="close-btn" onclick="closeShareModal()">✕</button>
-
-      <!-- 카드 본체 (이미지로 캡처될 영역) -->
-      <div id="shareCard">
-
-        <!-- 헤더: 브랜드 + 고양이 이름 -->
-        <div class="sc-header">
-          <div class="sc-brand">ProvedCat</div>
-          <div>
-            <div class="sc-cat-name" id="sc_catName">루나</div>
-            <div class="sc-cat-sub"  id="sc_catSub">4.2 kg · 중성화 성묘</div>
-          </div>
-        </div>
-
-        <!-- 칼로리 블록 -->
-        <div class="sc-kcal-block">
-          <div class="sc-kcal-label">DAILY CALORIES</div>
-          <div class="sc-kcal-row">
-            <div>
-              <span class="sc-kcal-num" id="sc_der">238</span>
-              <div class="sc-kcal-unit">kcal / day</div>
-            </div>
-            <div class="sc-ratio-wrap">
-              <div class="sc-ratio-bar">
-                <div class="sc-dry-seg" id="sc_drySeg" style="width:30%"></div>
-                <div class="sc-wet-seg"></div>
-              </div>
-              <div class="sc-ratio-txt" id="sc_ratioTxt">DRY 30% · WET 70%</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 사료별 급여량 -->
-        <div class="sc-feeds">
-          <div class="sc-feeds-title">FEEDING PLAN</div>
-          <div id="sc_feedList"></div>
-        </div>
-
-        <!-- 분석 섹션 -->
-        <div class="sc-analysis">
-          <div class="sc-analysis-title">NUTRITION ANALYSIS</div>
-
-          <!-- Ca:P 카드 -->
-          <div class="sc-an-card">
-            <div class="sc-an-label">Ca : P 비율</div>
-            <div class="sc-an-main-row">
-              <div class="sc-an-val" id="sc_capRatio">—</div>
-              <div class="sc-an-sub" id="sc_capStatus">—</div>
-            </div>
-            <!-- 칼슘/인 섭취 용량 상세 -->
-            <div class="sc-cap-detail">
-              <div class="sc-cap-item">
-                <div class="sc-cap-item-label">칼슘</div>
-                <div class="sc-cap-item-val" id="sc_ca">—</div>
-                <div class="sc-cap-item-unit">mg / day</div>
-              </div>
-              <div class="sc-cap-item">
-                <div class="sc-cap-item-label">인</div>
-                <div class="sc-cap-item-val" id="sc_p">—</div>
-                <div class="sc-cap-item-unit">mg / day</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 수분 섭취 카드 -->
-          <div class="sc-an-card">
-            <div class="sc-an-label">수분 섭취</div>
-            <div class="sc-an-main-row">
-              <div class="sc-an-val" id="sc_waterMl">—</div>
-              <div class="sc-an-sub" id="sc_waterPct">—</div>
-            </div>
-            <!-- 게이지 바 (섭취량 / 최소 권장량 비율) -->
-            <div class="sc-water-gauge-track">
-              <div class="sc-water-gauge-fill" id="sc_waterGauge" style="width:0%;background:#4ade80"></div>
-            </div>
-            <div class="sc-water-nums">
-              <span>0 ml</span>
-              <span id="sc_waterRange">권장 —</span>
-            </div>
-            <div class="sc-an-sub" id="sc_waterStatus" style="margin-top:6px">—</div>
-          </div>
-        </div>
-
-        <!-- 카드 하단 -->
-        <div class="sc-footer">
-          <div class="sc-footer-url">provedcat.github.io/catfoodcalculator</div>
-          <div class="sc-footer-date" id="sc_date"></div>
-        </div>
-      </div>
-
-      <!-- 저장 / 카카오 공유 버튼 -->
-      <div class="share-btn-row">
-        <button class="share-btn-save"  onclick="shareCard_save()">📥 이미지 저장</button>
-        <button class="share-btn-kakao" onclick="shareCard_kakao()">💬 카카오 공유</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  // 배경 클릭 시 모달 닫기
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeShareModal();
-  });
-})();
-
-
-// -----------------------------------------------
-// 모달 열기: 계산 결과 데이터를 받아 카드에 채워 넣음
-// calculate() 함수가 끝나면 이 함수가 호출됩니다
+// 모달 열기 — 계산 결과를 카드에 채워 넣고 모달 표시
 // -----------------------------------------------
 function openShareModal() {
   const result = state.lastResult;
-  if (!result) {
-    alert('먼저 급여량을 계산해주세요.');
-    return;
-  }
+  if (!result) { alert('먼저 급여량을 계산해주세요.'); return; }
 
-  // --- 고양이 기본 정보 ---
-  const catName  = document.getElementById('catName').value  || '내 고양이';
+  // 고양이 기본 정보
+  const catName  = document.getElementById('catName').value || '내 고양이';
   const weight   = parseFloat(document.getElementById('catWeight').value) || 0;
   const birthStr = document.getElementById('catBirth').value;
   const neutered = document.getElementById('catNeutered').value === 'true';
 
-  // 월령 계산 (나이 표시용)
+  // 나이 텍스트 계산
   let ageTxt = '';
   if (birthStr) {
     const today  = new Date();
     const birth  = new Date(birthStr);
     const months = (today.getFullYear() - birth.getFullYear()) * 12
                  + (today.getMonth() - birth.getMonth());
-    ageTxt = months >= 12
-      ? Math.floor(months / 12) + '살'
-      : months + '개월';
+    ageTxt = months >= 12 ? Math.floor(months / 12) + '살' : months + '개월';
   }
-  const subTxt = [
-    weight ? weight + ' kg' : '',
-    neutered ? '중성화' : '비중성화',
-    ageTxt
-  ].filter(Boolean).join(' · ');
+  const subTxt = [weight ? weight + ' kg' : '', neutered ? '중성화' : '비중성화', ageTxt]
+    .filter(Boolean).join(' · ');
 
   document.getElementById('sc_catName').textContent = catName;
   document.getElementById('sc_catSub').textContent  = subTxt;
   document.getElementById('sc_der').textContent     = result.DER;
 
-  // --- 비율 바 ---
+  // 비율 바
   const dryPct = Math.round((result.dryRatio || 0) * 100);
   const wetPct = 100 - dryPct;
   document.getElementById('sc_drySeg').style.width   = dryPct + '%';
   document.getElementById('sc_ratioTxt').textContent = `DRY ${dryPct}% · WET ${wetPct}%`;
 
-  // --- 사료 목록 렌더링 ---
+  // 사료 목록
   const allFeeds = [
     ...(result.건사료_결과 || []).map(f => ({ ...f, 종류: 'DRY', 색상: '#f4a44a' })),
     ...(result.습식사료_결과 || []).map(f => ({ ...f, 종류: 'WET', 색상: '#4a9af4' }))
   ];
 
   document.getElementById('sc_feedList').innerHTML = allFeeds.map(f => `
-    <div class="sc-feed-row" style="margin-bottom:8px">
+    <div class="sc-feed-row" style="margin-bottom:7px">
       <div class="sc-feed-dot" style="background:${f.색상}"></div>
       <div class="sc-feed-info">
         <div class="sc-feed-type">${f.종류}</div>
@@ -1422,11 +1168,10 @@ function openShareModal() {
         <div class="sc-feed-g">${f.급여량_g}g</div>
         <div class="sc-feed-kcal">${f.담당칼로리} kcal</div>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 
-  // --- Ca:P 분석 ---
-  let 총칼슘 = 0, 총인 = 0, capOk = false;
+  // Ca:P 분석
+  let 총칼슘 = 0, 총인 = 0;
   allFeeds.forEach(f => {
     if (f.에너지기준_칼슘 > 0 && f.에너지기준_인 > 0) {
       총칼슘 += f.에너지기준_칼슘 * f.담당칼로리;
@@ -1435,7 +1180,7 @@ function openShareModal() {
   });
   const ratio = 총인 > 0 ? (총칼슘 / 총인) : null;
   if (ratio !== null) {
-    capOk = ratio >= 1.0 && ratio <= 2.0;
+    const capOk = ratio >= 1.0 && ratio <= 2.0;
     document.getElementById('sc_capRatio').textContent  = ratio.toFixed(2) + ' : 1';
     document.getElementById('sc_capRatio').className    = 'sc-an-val ' + (capOk ? 'color-ok' : 'color-warn');
     document.getElementById('sc_capStatus').textContent = capOk ? '✓ 정상' : '⚠ 확인필요';
@@ -1443,14 +1188,14 @@ function openShareModal() {
     document.getElementById('sc_ca').textContent = Math.round(총칼슘);
     document.getElementById('sc_p').textContent  = Math.round(총인);
   } else {
-    // 데이터 없는 경우
     document.getElementById('sc_capRatio').textContent  = '데이터 없음';
+    document.getElementById('sc_capRatio').className    = 'sc-an-val';
     document.getElementById('sc_capStatus').textContent = '';
     document.getElementById('sc_ca').textContent = '—';
     document.getElementById('sc_p').textContent  = '—';
   }
 
-  // --- 수분 분석 ---
+  // 수분 분석
   let 총수분 = 0;
   allFeeds.forEach(f => {
     if (f.수분_pct != null && f.수분_pct > 0) {
@@ -1459,33 +1204,33 @@ function openShareModal() {
   });
   총수분 = Math.round(총수분 * 10) / 10;
 
-  const 권장최소 = Math.round(weight * 44);
-  const 권장최대 = Math.round(weight * 55);
-  const 수분충족률 = 권장최소 > 0 ? Math.min(100, Math.round((총수분 / 권장최소) * 100)) : 0;
+  const 권장최소  = Math.round(weight * 44);
+  const 권장최대  = Math.round(weight * 55);
+  const 충족률    = 권장최소 > 0 ? Math.min(100, Math.round((총수분 / 권장최소) * 100)) : 0;
   const 수분OK    = 총수분 >= 권장최소;
-  const 게이지색상 = 수분충족률 >= 100 ? '#4ade80' : 수분충족률 >= 70 ? '#fbbf24' : '#f87171';
+  const 게이지색  = 충족률 >= 100 ? '#4ade80' : 충족률 >= 70 ? '#fbbf24' : '#f87171';
 
-  document.getElementById('sc_waterMl').textContent  = 총수분 + ' ml';
-  document.getElementById('sc_waterPct').textContent = 수분충족률 + '% 충족';
-  document.getElementById('sc_waterPct').className   = 'sc-an-sub ' + (수분OK ? 'color-ok' : 'color-warn');
-  document.getElementById('sc_waterGauge').style.width      = 수분충족률 + '%';
-  document.getElementById('sc_waterGauge').style.background = 게이지색상;
-  document.getElementById('sc_waterRange').textContent = `권장 ${권장최소}–${권장최대} ml`;
-  document.getElementById('sc_waterStatus').textContent = 수분OK
+  document.getElementById('sc_waterMl').textContent             = 총수분 + ' ml';
+  document.getElementById('sc_waterPct').textContent            = 충족률 + '% 충족';
+  document.getElementById('sc_waterPct').className              = 'sc-an-sub ' + (수분OK ? 'color-ok' : 'color-warn');
+  document.getElementById('sc_waterGauge').style.width          = 충족률 + '%';
+  document.getElementById('sc_waterGauge').style.background     = 게이지색;
+  document.getElementById('sc_waterRange').textContent          = `권장 ${권장최소}–${권장최대} ml`;
+  document.getElementById('sc_waterStatus').textContent         = 수분OK
     ? '✓ 사료만으로 권장치 충족!'
     : `물그릇으로 ${Math.round(권장최소 - 총수분)}ml 이상 추가 필요`;
   document.getElementById('sc_waterStatus').className = 'sc-an-sub ' + (수분OK ? 'color-ok' : 'color-warn');
 
-  // --- 날짜 ---
+  // 날짜
   const today = new Date();
   document.getElementById('sc_date').textContent =
     today.getFullYear() + '. ' +
     String(today.getMonth() + 1).padStart(2, '0') + '. ' +
     String(today.getDate()).padStart(2, '0');
 
-  // --- 모달 열기 ---
+  // 모달 열기
   document.getElementById('shareModal').classList.add('open');
-  document.body.style.overflow = 'hidden'; // 뒤 스크롤 방지
+  document.body.style.overflow = 'hidden';
 }
 
 // -----------------------------------------------
@@ -1496,10 +1241,9 @@ function closeShareModal() {
   document.body.style.overflow = '';
 }
 
-
 // -----------------------------------------------
-// 이미지 저장 버튼
-// html2canvas 로 카드 영역을 PNG로 캡처해서 다운로드합니다
+// 이미지 저장
+// html2canvas로 카드를 PNG로 캡처해서 다운로드
 // -----------------------------------------------
 async function shareCard_save() {
   const btn = document.querySelector('.share-btn-save');
@@ -1508,19 +1252,17 @@ async function shareCard_save() {
   btn.disabled = true;
 
   try {
-    const card   = document.getElementById('shareCard');
-    const canvas = await html2canvas(card, {
-      scale:           3,          // 3배 고해상도 (카카오톡 공유 시 선명하게)
+    const canvas = await html2canvas(document.getElementById('shareCard'), {
+      scale:           3,       // 3배 고해상도 출력
       useCORS:         true,
-      backgroundColor: null,       // 카드 배경색 그대로 캡처
+      backgroundColor: null,
       logging:         false
     });
 
-    // PNG 다운로드 링크 생성 후 자동 클릭
-    const link     = document.createElement('a');
-    const catName  = document.getElementById('catName').value || 'cat';
-    link.download  = `provedcat_${catName}.png`;
-    link.href      = canvas.toDataURL('image/png');
+    const link    = document.createElement('a');
+    const catName = document.getElementById('catName').value || 'cat';
+    link.download = `provedcat_${catName}.png`;
+    link.href     = canvas.toDataURL('image/png');
     link.click();
 
   } catch (err) {
@@ -1531,45 +1273,35 @@ async function shareCard_save() {
   btn.disabled    = false;
 }
 
-
 // -----------------------------------------------
-// 카카오톡 공유 버튼
-// 카카오 SDK를 이용해 링크+텍스트 형태로 공유합니다
-// (이미지를 직접 첨부하는 방식은 카카오 비즈 앱 등록 필요 → 우선 링크 공유로 구현)
-// 추후 카카오 앱키를 발급받아 KAKAO_APP_KEY 값만 바꾸면 됩니다
+// 카카오톡 공유
+// 앱 키 설정 전: 링크 복사로 대체
+// 앱 키 설정 후: 카카오 피드 공유
 // -----------------------------------------------
 function shareCard_kakao() {
-  // ⚠️ 카카오 개발자 콘솔(developers.kakao.com)에서 JavaScript 앱 키를 발급받아 아래에 입력하세요
-  const KAKAO_APP_KEY = '84608b6cbda6b385c0f1c95aefb5c3be'; // ← 여기에 앱 키 입력
+  if (KAKAO_APP_KEY === '84608b6cbda6b385c0f1c95aefb5c3be') {
+    // 앱 키 미설정 → URL 복사
+    const url = 'https://provedcat.github.io/catfoodcalculator';
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        alert('링크가 복사되었습니다!\n카카오톡에 붙여넣기 해주세요 😺');
+      });
+    } else {
+      alert('공유 주소:\n' + url);
+    }
+    return;
+  }
 
-  // Kakao SDK 초기화 여부 확인
   if (typeof Kakao === 'undefined') {
     alert('카카오 SDK 로드 중입니다. 잠시 후 다시 눌러주세요.');
     return;
   }
 
-  // 앱키가 설정되지 않은 경우 → 링크 복사로 대체
-  if (KAKAO_APP_KEY === 'YOUR_KAKAO_JS_KEY') {
-    const url = 'https://provedcat.github.io/catfoodcalculator';
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(() => {
-        alert('링크가 복사되었습니다!\n카카오톡에 붙여넣기 해주세요 😺\n\n' + url);
-      });
-    } else {
-      alert('카카오톡으로 공유할 주소:\n' + url);
-    }
-    return;
-  }
+  if (!Kakao.isInitialized()) Kakao.init(KAKAO_APP_KEY);
 
-  // 카카오 SDK 초기화 (이미 초기화된 경우 재초기화 방지)
-  if (!Kakao.isInitialized()) {
-    Kakao.init(KAKAO_APP_KEY);
-  }
-
-  const catName = document.getElementById('catName').value  || '내 고양이';
+  const catName = document.getElementById('catName').value || '내 고양이';
   const der     = state.lastResult?.DER || 0;
 
-  // 피드 공유 (링크 + 텍스트 + 버튼)
   Kakao.Share.sendDefault({
     objectType: 'feed',
     content: {
@@ -1590,7 +1322,6 @@ function shareCard_kakao() {
     }]
   });
 }
-
 </script>
 </body>
 </html>
