@@ -219,7 +219,20 @@
     <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
   </header>
 
+  <nav class="px-6 pb-4 grid grid-cols-2 gap-2">
+    <button id="navCalculator" onclick="showPage('calculatorPage')"
+      class="py-3 rounded-2xl text-sm font-black bg-[#2d7dd2] text-white shadow-sm">
+      급여 계산
+    </button>
+    <button id="navWeightTrend" onclick="showPage('weightTrendPage')"
+      class="py-3 rounded-2xl text-sm font-black bg-gray-100 text-gray-400">
+      체중 추이
+    </button>
+  </nav>
+
   <main class="px-6 pb-28 space-y-10">
+
+    <section id="calculatorPage" class="space-y-10">
 
     <!-- 1단계: 고양이 정보 -->
     <section class="space-y-4">
@@ -394,6 +407,18 @@
       <div id="uploadMsg"></div>
     </section>
 
+    </section>
+
+    <section id="weightTrendPage" class="hidden space-y-4">
+      <div class="p-6 bg-blue-50 rounded-3xl border border-blue-100 text-center space-y-3">
+        <p class="text-3xl">📈</p>
+        <h2 class="text-xl font-black text-gray-800">체중 추이</h2>
+        <p class="text-sm font-bold text-gray-500 leading-relaxed">
+          로그인 사용자 전용 체중 기록과 추이 그래프를 준비 중입니다.
+        </p>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -533,9 +558,39 @@ let state = {
 };
 
 // -----------------------------------------------
+// 페이지 전환
+// -----------------------------------------------
+function showPage(pageName) {
+  const pages = {
+    calculatorPage: document.getElementById('calculatorPage'),
+    weightTrendPage: document.getElementById('weightTrendPage')
+  };
+  const buttons = {
+    calculatorPage: document.getElementById('navCalculator'),
+    weightTrendPage: document.getElementById('navWeightTrend')
+  };
+
+  Object.entries(pages).forEach(([key, page]) => {
+    if (!page) return;
+    page.classList.toggle('hidden', key !== pageName);
+  });
+
+  Object.entries(buttons).forEach(([key, button]) => {
+    if (!button) return;
+    const active = key === pageName;
+    button.classList.toggle('bg-[#2d7dd2]', active);
+    button.classList.toggle('text-white', active);
+    button.classList.toggle('shadow-sm', active);
+    button.classList.toggle('bg-gray-100', !active);
+    button.classList.toggle('text-gray-400', !active);
+  });
+}
+
+// -----------------------------------------------
 // 앱 시작
 // -----------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
+  showPage('calculatorPage');
   addWetSlot();
 
   ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
