@@ -222,20 +222,20 @@
   <section id="authBox" class="px-6 pb-4">
     <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
       <div id="loggedOutBox" class="space-y-3">
-        <div class="grid grid-cols-1 gap-2">
-          <input id="authEmail" type="email" placeholder="이메일"
-            class="w-full p-3 bg-white rounded-xl font-bold text-sm border border-gray-100">
-          <input id="authPassword" type="password" placeholder="비밀번호"
-            class="w-full p-3 bg-white rounded-xl font-bold text-sm border border-gray-100">
-        </div>
+        <input id="authEmail" type="email" placeholder="이메일"
+          class="w-full p-3 bg-white rounded-xl font-bold text-sm border border-gray-100">
+        <button id="emailOtpLoginBtn" onclick="handleEmailOtpLogin()"
+          class="w-full py-3 bg-[#2d7dd2] text-white text-sm font-black rounded-xl shadow-sm">
+          이메일로 로그인 코드 받기
+        </button>
         <div class="grid grid-cols-2 gap-2">
-          <button id="loginBtn" onclick="handleLogin()"
-            class="py-3 bg-[#2d7dd2] text-white text-sm font-black rounded-xl shadow-sm">
-            로그인
+          <button type="button" disabled
+            class="py-3 bg-[#FEE500] text-[#3C1E1E] text-sm font-black rounded-xl opacity-60 cursor-not-allowed">
+            카카오로 시작하기
           </button>
-          <button id="signupBtn" onclick="handleSignup()"
-            class="py-3 bg-white text-[#2d7dd2] text-sm font-black rounded-xl border border-blue-100">
-            회원가입
+          <button type="button" disabled
+            class="py-3 bg-white text-gray-400 text-sm font-black rounded-xl border border-gray-200 opacity-60 cursor-not-allowed">
+            Google로 시작하기
           </button>
         </div>
       </div>
@@ -691,50 +691,28 @@ async function refreshAuthUI() {
   updateSaveFeedingButtonVisibility();
 }
 
-async function handleLogin() {
+async function handleEmailOtpLogin() {
   const email = document.getElementById('authEmail')?.value.trim();
-  const password = document.getElementById('authPassword')?.value;
 
-  if (!email || !password) {
-    setAuthMessage('이메일과 비밀번호를 입력해주세요.', 'red');
+  if (!email) {
+    setAuthMessage('로그인 링크를 받을 이메일을 입력해주세요.', 'red');
     return;
   }
 
-  setAuthMessage('로그인 중입니다...', 'blue');
-  const { error } = await sb.auth.signInWithPassword({ email, password });
+  setAuthMessage('로그인 링크를 보내는 중입니다...', 'blue');
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: 'https://provedcat.github.io/catfoodcalculator/'
+    }
+  });
 
   if (error) {
-    setAuthMessage(`로그인 실패: ${error.message}`, 'red');
+    setAuthMessage(`이메일 전송 실패: ${error.message}`, 'red');
     return;
   }
 
-  const passwordInput = document.getElementById('authPassword');
-  if (passwordInput) passwordInput.value = '';
-  await refreshAuthUI();
-  setAuthMessage('로그인되었습니다.', 'blue');
-}
-
-async function handleSignup() {
-  const email = document.getElementById('authEmail')?.value.trim();
-  const password = document.getElementById('authPassword')?.value;
-
-  if (!email || !password) {
-    setAuthMessage('회원가입할 이메일과 비밀번호를 입력해주세요.', 'red');
-    return;
-  }
-
-  setAuthMessage('회원가입 처리 중입니다...', 'blue');
-  const { error } = await sb.auth.signUp({ email, password });
-
-  if (error) {
-    setAuthMessage(`회원가입 실패: ${error.message}`, 'red');
-    return;
-  }
-
-  const passwordInput = document.getElementById('authPassword');
-  if (passwordInput) passwordInput.value = '';
-  await refreshAuthUI();
-  setAuthMessage('회원가입이 완료되었습니다. 이메일 확인이 필요할 수 있습니다.', 'blue');
+  setAuthMessage('이메일을 확인해주세요. 로그인 링크를 보냈습니다.', 'blue');
 }
 
 async function handleLogout() {
