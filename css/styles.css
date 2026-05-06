@@ -1,0 +1,198 @@
+    :root { --brand:#2d7dd2; --dry:#f4a44a; --wet:#4a9af4; }
+    body { font-size:16px; background:#f3f4f6; word-break:keep-all; font-family:-apple-system,sans-serif; }
+    input,select { outline:none; }
+    input[type=range] { -webkit-appearance:none; background:#e5e7eb; height:8px; border-radius:4px; width:100%; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; background:var(--brand); border-radius:50%; cursor:pointer; border:4px solid white; box-shadow:0 2px 4px rgba(0,0,0,.15); }
+    .autocomplete-item:hover { background:#f0f7ff; }
+
+    /* -----------------------------------------------
+       공유 카드 모달 스타일
+       역할: 결과 이미지 카드를 보여주는 전체화면 레이어
+    ----------------------------------------------- */
+    #shareModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,0.8);
+      overflow-y: auto;
+      padding: 24px 16px 48px;
+      -webkit-overflow-scrolling: touch;
+    }
+    #shareModal.open { display: block; }
+
+    /* 모달 내부 컨텐츠 박스 */
+    .share-modal-inner {
+      max-width: 360px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* 닫기 버튼 */
+    .share-close-btn {
+      align-self: flex-end;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* -----------------------------------------------
+       공유 카드 본체 (9:16 비율 — 스토리 형태)
+       역할: 이 div 전체가 png 이미지로 캡처됩니다
+    ----------------------------------------------- */
+    #shareCard {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      background: #0d1e36;
+      border-radius: 22px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, sans-serif;
+    }
+
+    /* 배경 장식 그라데이션 원 */
+    #shareCard::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(45,125,210,0.22) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    #shareCard::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(74,154,244,0.12) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* 카드 헤더: 브랜드명 + 고양이 이름 */
+    .sc-header {
+      padding: 26px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+    }
+    .sc-brand { font-size:14px; font-weight:900; color:#5ba3e8; font-style:italic; letter-spacing:-0.02em; }
+    .sc-cat-name { font-size:22px; font-weight:900; color:#fff; line-height:1.1; text-align:right; letter-spacing:-0.03em; }
+    .sc-cat-sub { font-size:10px; color:rgba(255,255,255,0.38); text-align:right; margin-top:3px; font-weight:700; }
+
+    /* 칼로리 블록 */
+    .sc-kcal-block {
+      padding: 18px 24px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .sc-kcal-label { font-size:9px; font-weight:900; color:#5ba3e8; letter-spacing:0.18em; margin-bottom:4px; }
+    .sc-kcal-row { display:flex; align-items:flex-end; justify-content:space-between; }
+    .sc-kcal-num { font-size:54px; font-weight:900; color:#fff; line-height:1; letter-spacing:-0.04em; }
+    .sc-kcal-unit { font-size:12px; color:rgba(255,255,255,0.35); font-weight:700; margin-bottom:4px; }
+    .sc-ratio-wrap { display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+    .sc-ratio-bar { width:84px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; display:flex; }
+    .sc-dry-seg { background:#f4a44a; }
+    .sc-wet-seg { background:#4a9af4; flex:1; }
+    .sc-ratio-txt { font-size:9px; font-weight:900; color:rgba(255,255,255,0.3); letter-spacing:0.07em; }
+
+    /* 사료 급여량 목록 */
+    .sc-feeds {
+      padding: 14px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .sc-feeds-title { font-size:9px; font-weight:900; color:rgba(255,255,255,0.25); letter-spacing:0.15em; margin-bottom:2px; }
+    .sc-feed-row {
+      display:flex; align-items:center; gap:9px;
+      padding:10px 12px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.07);
+      border-radius:13px;
+    }
+    .sc-feed-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .sc-feed-info { flex:1; min-width:0; }
+    .sc-feed-type { font-size:8px; font-weight:900; letter-spacing:0.12em; opacity:0.45; color:#fff; }
+    .sc-feed-name { font-size:11px; font-weight:700; color:rgba(255,255,255,0.85); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+    .sc-feed-right { text-align:right; flex-shrink:0; }
+    .sc-feed-g { font-size:20px; font-weight:900; color:#fff; line-height:1; letter-spacing:-0.03em; }
+    .sc-feed-kcal { font-size:9px; color:rgba(255,255,255,0.3); font-weight:700; }
+
+    /* 영양 분석 섹션 */
+    .sc-analysis {
+      padding: 12px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      position: relative;
+      flex: 1;
+    }
+    .sc-analysis-title { font-size:9px; font-weight:900; color:rgba(255,255,255,0.25); letter-spacing:0.15em; }
+    .sc-an-card {
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.07);
+      border-radius:14px;
+      padding:12px 14px;
+    }
+    .sc-an-label { font-size:9px; font-weight:900; color:rgba(255,255,255,0.3); letter-spacing:0.1em; margin-bottom:5px; }
+    .sc-an-main-row { display:flex; align-items:flex-end; justify-content:space-between; }
+    .sc-an-val { font-size:24px; font-weight:900; line-height:1; letter-spacing:-0.03em; }
+    .sc-an-sub { font-size:10px; font-weight:700; margin-top:4px; }
+
+    /* Ca:P 칼슘/인 용량 상세 */
+    .sc-cap-detail { display:flex; gap:10px; margin-top:8px; }
+    .sc-cap-item { flex:1; background:rgba(255,255,255,0.05); border-radius:9px; padding:7px 9px; text-align:center; }
+    .sc-cap-item-label { font-size:8px; font-weight:900; color:rgba(255,255,255,0.3); letter-spacing:0.1em; }
+    .sc-cap-item-val { font-size:15px; font-weight:900; color:#fff; margin-top:2px; line-height:1; }
+    .sc-cap-item-unit { font-size:8px; color:rgba(255,255,255,0.3); font-weight:700; }
+
+    /* 수분 게이지 */
+    .sc-water-gauge-track { width:100%; height:7px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden; margin-top:7px; }
+    .sc-water-gauge-fill { height:7px; border-radius:4px; }
+    .sc-water-nums { display:flex; justify-content:space-between; margin-top:4px; font-size:8px; font-weight:700; color:rgba(255,255,255,0.25); }
+
+    /* 상태 색상 */
+    .color-ok   { color: #4ade80; }
+    .color-warn { color: #fbbf24; }
+
+    /* 카드 푸터 */
+    .sc-footer {
+      padding: 10px 24px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      position: relative;
+    }
+    .sc-footer-url { font-size:9px; font-weight:900; color:rgba(255,255,255,0.2); letter-spacing:0.04em; }
+    .sc-footer-date { font-size:9px; font-weight:700; color:rgba(255,255,255,0.2); }
+
+    /* 저장/공유 버튼 */
+    .share-btn-row { display:flex; gap:10px; }
+    .share-btn-save {
+      flex:1; padding:15px;
+      background:#2d7dd2; color:#fff;
+      font-size:14px; font-weight:900;
+      border:none; border-radius:16px; cursor:pointer;
+    }
+    .share-btn-kakao {
+      flex:1; padding:15px;
+      background:#FEE500; color:#3C1E1E;
+      font-size:14px; font-weight:900;
+      border:none; border-radius:16px; cursor:pointer;
+    }
+    .share-btn-save:active, .share-btn-kakao:active { opacity:0.8; }
