@@ -1,23 +1,96 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f2e9"><title>EUNDONG DAILY</title><link rel="stylesheet" href="css/app.css?v=20260819-5"><script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script></head>
-<body><div id="unlinked" class="gate" hidden><p class="eyebrow">EUNDONG DAILY</p><h1>이 기기는 아직 은동이 기록에 연결되지 않았습니다.</h1><p>은동이 비밀 연결 주소를 이 기기에서 한 번 열어 주세요.</p></div>
-<div id="app" hidden><header><div><p class="eyebrow">EUNDONG DAILY</p><h1 id="dateLabel">—</h1></div><div><span class="pet">은동</span><small id="saveState" role="status">불러오는 중</small></div></header><main>
-<p id="error" class="error" role="alert" hidden></p>
-<section><div class="section-head"><h2>오늘의 몸무게</h2><span id="weeklyGoal">목표선 —</span></div><div class="weight-grid"><label><span>오늘</span><span class="number-input"><input id="weight" type="number" min="0.1" max="30" step="0.01" inputmode="decimal"><b>kg</b></span></label><span class="arrow">→</span><label><span>목표</span><span class="number-input"><input id="goalWeight" type="number" min="0.1" max="30" step="0.01" inputmode="decimal"><b>kg</b></span></label></div><div class="goal-line"><strong id="remaining">목표를 설정해 주세요</strong><button id="goalToggle" class="text-button">목표 일정 설정</button></div><div id="goalFields" class="goal-fields" hidden><label>시작 체중<input id="goalStartWeight" type="number" min="0.1" max="30" step="0.01"></label><label>시작일<input id="goalStartDate" type="date"></label><label>종료일<input id="goalEndDate" type="date"></label><p>목표선은 시작과 종료 사이를 단순히 선형 계산한 값이며 의학적 권장 속도가 아닙니다.</p></div></section>
-<section><div class="section-head"><h2>체중 · 수분 추이</h2><div class="ranges"><button data-days="7">7일</button><button data-days="30" class="active">30일</button><button data-days="all">전체</button></div></div><div class="chart"><canvas id="trend"></canvas><p id="chartEmpty">기록이 쌓이면 추이를 보여드려요.</p></div></section>
-<section><div class="section-head"><h2>오늘의 사료</h2><span>최대 3개</span></div><div id="feedSlots" class="feed-slots"></div></section>
-<section><div class="section-head"><h2>오늘의 급여</h2><span>4회 · 자동 저장</span></div><div class="meal-labels"><span>시간 / 사료</span><span>급여량</span><span>+ 물</span></div><div id="meals"></div></section>
-<section class="summary"><h2>오늘의 합계</h2><div id="totals"></div><p id="missing" class="missing"></p></section>
-</main><footer>Supabase에 보안 연결 · 마지막 동기화 <span id="syncedAt">—</span></footer></div>
-<dialog id="feedDialog"><div class="dialog-head"><div><p class="eyebrow">오늘의 사료</p><h2 id="dialogTitle">사료 검색</h2></div><button id="closeDialog" class="close" aria-label="닫기">×</button></div><label class="search">제품명<input id="feedSearch" type="search" autocomplete="off" placeholder="두 글자 이상 입력"></label><div id="feedResults" class="results"><p>제품명을 입력해 주세요.</p></div></dialog>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f2e9">
+  <title>EUNDONG DAILY</title>
+  <link rel="stylesheet" href="css/app.css?v=20260824-2">
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="unlinked" class="gate" hidden>
+  <p class="eyebrow">EUNDONG DAILY</p>
+  <h1>이 기기는 아직 은동이 기록에 연결되지 않았습니다.</h1>
+  <p>은동이 비밀 연결 주소를 이 기기에서 한 번 열어 주세요.</p>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <div>
+      <p class="eyebrow">EUNDONG DAILY</p>
+      <h1 id="dateLabel">—</h1>
+      <label for="recordDate" style="display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#66716c;">
+        날짜 선택
+        <input id="recordDate" type="date" aria-label="기록 날짜 선택" style="font:inherit;color:#25302c;background:transparent;border:0;border-bottom:1px solid #9da49f;padding:4px 2px;min-height:32px;">
+      </label>
+    </div>
+    <div>
+      <span class="pet">은동</span>
+      <small id="saveState" role="status">불러오는 중</small>
+    </div>
+  </header>
+
+  <main>
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <section>
+      <div class="section-head"><h2>몸무게</h2><span id="weeklyGoal">목표선 —</span></div>
+      <div class="weight-grid">
+        <label><span>기록</span><span class="number-input"><input id="weight" type="number" min="0.1" max="30" step="0.01" inputmode="decimal"><b>kg</b></span></label>
+        <span class="arrow">→</span>
+        <label><span>목표</span><span class="number-input"><input id="goalWeight" type="number" min="0.1" max="30" step="0.01" inputmode="decimal"><b>kg</b></span></label>
+      </div>
+      <div class="goal-line"><strong id="remaining">목표를 설정해 주세요</strong><button id="goalToggle" class="text-button">목표 일정 설정</button></div>
+      <div id="goalFields" class="goal-fields" hidden>
+        <label>시작 체중<input id="goalStartWeight" type="number" min="0.1" max="30" step="0.01"></label>
+        <label>시작일<input id="goalStartDate" type="date"></label>
+        <label>종료일<input id="goalEndDate" type="date"></label>
+        <p>목표선은 시작과 종료 사이를 단순히 선형 계산한 값이며 의학적 권장 속도가 아닙니다.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>체중 · 수분 추이</h2><div class="ranges"><button data-days="7">7일</button><button data-days="30" class="active">30일</button><button data-days="all">전체</button></div></div>
+      <div class="chart"><canvas id="trend"></canvas><p id="chartEmpty">기록이 쌓이면 추이를 보여드려요.</p></div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>사료</h2><span>최대 6개</span></div>
+      <div id="feedSlots" class="feed-slots"></div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>급여</h2><span>4회 · 자동 저장</span></div>
+      <div class="meal-labels"><span>시간 / 사료</span><span>급여량</span><span>+ 물</span></div>
+      <div id="meals"></div>
+    </section>
+
+    <section class="summary">
+      <h2>합계</h2>
+      <div id="totals"></div>
+      <p id="missing" class="missing"></p>
+    </section>
+  </main>
+
+  <footer>Supabase에 보안 연결 · 마지막 동기화 <span id="syncedAt">—</span></footer>
+</div>
+
+<dialog id="feedDialog">
+  <div class="dialog-head">
+    <div><p class="eyebrow">사료 선택</p><h2 id="dialogTitle">사료 검색</h2></div>
+    <button id="closeDialog" class="close" aria-label="닫기">×</button>
+  </div>
+  <label class="search">제품명<input id="feedSearch" type="search" autocomplete="off" placeholder="두 글자 이상 입력"></label>
+  <div id="feedResults" class="results"><p>제품명을 입력해 주세요.</p></div>
+</dialog>
+
 <script>
 (async () => {
-  const cleanupKey = 'edw-legacy-sw-cleanup-20260819-5';
+  const cleanupKey = 'edw-legacy-sw-cleanup-20260824-2';
   let hadEdwController = false;
   try {
-    // Some Android in-app browsers require fetch to retain the Window/globalThis receiver.
-    if (typeof globalThis.fetch === 'function') {
-      globalThis.fetch = globalThis.fetch.bind(globalThis);
-    }
+    if (typeof globalThis.fetch === 'function') globalThis.fetch = globalThis.fetch.bind(globalThis);
     if ('serviceWorker' in navigator) {
       const controllerUrl = navigator.serviceWorker.controller?.scriptURL || '';
       hadEdwController = controllerUrl.includes('/EDW/') || controllerUrl.endsWith('/service-worker.js');
@@ -33,12 +106,12 @@
     if (hadEdwController && !sessionStorage.getItem(cleanupKey)) {
       sessionStorage.setItem(cleanupKey, '1');
       const url = new URL(location.href);
-      url.searchParams.set('fresh', '20260819-5');
+      url.searchParams.set('fresh', '20260824-2');
       location.replace(url.toString());
       return;
     }
     sessionStorage.removeItem(cleanupKey);
-    await import('./js/app.js?v=20260824-1');
+    await import('./js/app.js?v=20260824-2');
   } catch (error) {
     console.error('EDW bootstrap failed', error);
     const app = document.getElementById('app');
@@ -50,4 +123,6 @@
     }
   }
 })();
-</script></body></html>
+</script>
+</body>
+</html>
