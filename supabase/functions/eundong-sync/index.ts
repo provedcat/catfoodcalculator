@@ -153,8 +153,7 @@ Deno.serve(async req => {
       if (term.length < 2 || term.length > 80) return json(origin, { data: [] });
       const safe = term.replace(/[%_,()]/g, " ");
       query = db.from("feeds")
-        .select("id,제품명,수분,final_me,official_me,corrected_me,verified,verification_status,searchable_before_review")
-        .eq("type", "wet")
+        .select("id,type,제품명,수분,final_me,official_me,corrected_me,verified,verification_status,searchable_before_review")
         .or("verified.eq.true,searchable_before_review.eq.true")
         .ilike("제품명", `%${safe}%`)
         .limit(15);
@@ -163,9 +162,8 @@ Deno.serve(async req => {
       const slot = integer(input.feed_slot, 1, 3);
       if (!validUuid(input.feed_id)) throw new Error("INVALID_FEED_ID");
       const { data: feed, error } = await db.from("feeds")
-        .select("id,제품명,수분,final_me,official_me,corrected_me,verified,searchable_before_review")
+        .select("id,type,제품명,수분,final_me,official_me,corrected_me,verified,searchable_before_review")
         .eq("id", input.feed_id)
-        .eq("type", "wet")
         .or("verified.eq.true,searchable_before_review.eq.true")
         .single();
       if (error || !feed) throw new Error("FEED_NOT_FOUND");
