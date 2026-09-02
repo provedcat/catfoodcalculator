@@ -7,6 +7,12 @@
   <title>EUNDONG DAILY</title>
   <link rel="stylesheet" href="css/app.css?v=20260824-2">
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+  <style>
+    .add-meal{width:100%;min-height:46px;margin-top:10px;border:1px dashed var(--line);border-radius:2px;background:white;color:var(--green);font-weight:700;font-size:.82rem}
+    .extra-meal{background:#fbfaf5}
+    .meal-time-input{width:92px!important;height:30px!important;padding:0 4px;border:1px solid var(--line)!important;background:white!important;font-size:.76rem!important}
+    .remove-meal{margin-left:auto;border:0;background:none;color:var(--muted);font-size:.68rem;text-decoration:underline;padding:4px}
+  </style>
 </head>
 <body>
 <div id="unlinked" class="gate" hidden>
@@ -61,9 +67,10 @@
     </section>
 
     <section>
-      <div class="section-head"><h2>급여</h2><span>4회 · 자동 저장</span></div>
+      <div class="section-head"><h2>급여</h2><span>기본 4회 · 추가 가능</span></div>
       <div class="meal-labels"><span>시간 / 사료</span><span>급여량</span><span>+ 물</span></div>
       <div id="meals"></div>
+      <button id="addMeal" type="button" class="add-meal">+ 급여 추가</button>
     </section>
 
     <section class="summary">
@@ -87,7 +94,7 @@
 
 <script>
 (async () => {
-  const cleanupKey = 'edw-legacy-sw-cleanup-20260824-2';
+  const cleanupKey = 'edw-legacy-sw-cleanup-20260902-1';
   let hadEdwController = false;
   try {
     if (typeof globalThis.fetch === 'function') globalThis.fetch = globalThis.fetch.bind(globalThis);
@@ -106,12 +113,12 @@
     if (hadEdwController && !sessionStorage.getItem(cleanupKey)) {
       sessionStorage.setItem(cleanupKey, '1');
       const url = new URL(location.href);
-      url.searchParams.set('fresh', '20260824-2');
+      url.searchParams.set('fresh', '20260902-1');
       location.replace(url.toString());
       return;
     }
     sessionStorage.removeItem(cleanupKey);
-    await import('./js/app.js?v=20260824-2');
+    await import('./js/app.js?v=20260902-1');
   } catch (error) {
     console.error('EDW bootstrap failed', error);
     const app = document.getElementById('app');
