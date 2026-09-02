@@ -3,8 +3,10 @@ import { createClient } from "npm:@supabase/supabase-js@2.95.0";
 const PROD_ORIGIN = "https://provedcat.github.io";
 const LOCAL_ORIGINS = new Set(["http://localhost:4173", "http://127.0.0.1:4173"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TIMES = ["06:30", "09:00", "18:30", "23:00"];
+const MAX_MEAL_SLOTS = 20;
 
 function originAllowed(origin: string) {
   return origin === PROD_ORIGIN || LOCAL_ORIGINS.has(origin);
@@ -28,6 +30,9 @@ function validDate(value: unknown): value is string {
   if (typeof value !== "string" || !DATE_RE.test(value)) return false;
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.valueOf()) && d.toISOString().slice(0, 10) === value;
+}
+function validTime(value: unknown): value is string {
+  return typeof value === "string" && TIME_RE.test(value);
 }
 function validUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
@@ -162,8 +167,10 @@ Deno.serve(async req => {
       query = db.from("eundong_daily_feeds").upsert(rows, { onConflict: "recorded_date,feed_slot" }).select();
     } else if (action === "upsert_meal") {
       if (!validDate(input.date)) throw new Error("INVALID_DATE");
-      const slot = integer(input.meal_slot, 1, 4);
+      const slot = integer(input.meal_slot, 1, MAX_MEAL_SLOTS);
       const feedSlot = input.feed_slot == null ? null : integer(input.feed_slot, 1, 6);
+      const mealTime = slot <= TIMES.length ? TIMES[slot - 1] : String(input.meal_time || "").slice(0, 5);
+      if (!validTime(mealTime)) throw new Error("INVALID_MEAL_TIME");
       let snapshot: Record<string, unknown>;
       if (feedSlot) {
         const { data: f, error } = await db.from("eundong_daily_feeds").select("*").eq("recorded_date", input.date).eq("feed_slot", feedSlot).single();
@@ -181,11 +188,15 @@ Deno.serve(async req => {
       query = db.from("eundong_meals").upsert({
         recorded_date: input.date,
         meal_slot: slot,
-        meal_time: TIMES[slot - 1],
+        meal_time: mealTime,
         ...snapshot,
         amount_g: numeric(input.amount_g, 0, 5000),
         added_water_ml: numeric(input.added_water_ml, 0, 5000),
       }, { onConflict: "recorded_date,meal_slot" }).select().single();
+    } else if (action === "delete_meal") {
+      if (!validDate(input.date)) throw new Error("INVALID_DATE");
+      const slot = integer(input.meal_slot, 5, MAX_MEAL_SLOTS);
+      query = db.from("eundong_meals").delete().eq("recorded_date", input.date).eq("meal_slot", slot).select("id");
     } else if (action === "history") {
       const days = input.days === null ? 3650 : integer(input.days || 30, 1, 3650);
       const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
